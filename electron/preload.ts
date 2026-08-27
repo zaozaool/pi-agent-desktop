@@ -2,6 +2,9 @@ import type { IpcRendererEvent } from "electron";
 import { contextBridge, ipcRenderer } from "electron";
 
 contextBridge.exposeInMainWorld("electronAPI", {
+  // "darwin" | "win32" | "linux" - lets the renderer adapt platform-specific
+  // chrome such as the macOS traffic lights vs. Windows window controls.
+  platform: process.platform,
   selectDirectory: () => ipcRenderer.invoke("select-directory"),
   onUpdateAvailable: (callback: (info: { version: string }) => void) => {
     const listener = (_event: IpcRendererEvent, info: { version: string }) => callback(info);

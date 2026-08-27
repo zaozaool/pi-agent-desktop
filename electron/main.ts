@@ -281,12 +281,24 @@ function createWindow() {
     height: 900,
     minWidth: 800,
     minHeight: 600,
-    titleBarStyle: "hidden",
-    titleBarOverlay: {
-      color: "#0c1118",       // --bg-elevated (dark)
-      symbolColor: "#d9deea", // --text (dark)
-      height: 36,
-    },
+    // Window Controls Overlay (custom title bar buttons) only exists on
+    // Windows/Linux. On those platforms we draw overlay controls; on macOS we
+    // use the native traffic lights and position them inside the 36px toolbar
+    // (--toolbar-height). Passing titleBarOverlay / calling setTitleBarOverlay
+    // on macOS is a no-op at best and a TypeError at worst.
+    ...(process.platform === "darwin"
+      ? {
+          titleBarStyle: "hiddenInset" as const,
+          trafficLightPosition: { x: 14, y: 12 },
+        }
+      : {
+          titleBarStyle: "hidden" as const,
+          titleBarOverlay: {
+            color: "#0c1118",       // --bg-elevated (dark)
+            symbolColor: "#d9deea", // --text (dark)
+            height: 36,
+          },
+        }),
     title: "Pi Agent Desktop",
     icon: nativeImage.createFromPath(path.join(app.getAppPath(), "build", "icon.ico")),
     show: false,
@@ -485,7 +497,9 @@ function registerIpcHandlers() {
   });
 
   ipcMain.on("set-theme", (_event, isDark: boolean) => {
-    if (mainWindow) {
+    // setTitleBarOverlay is only available on Windows/Linux (Window Controls
+    // Overlay); the method does not exist on macOS and would throw.
+    if (mainWindow && typeof mainWindow.setTitleBarOverlay === "function") {
       mainWindow.setTitleBarOverlay({
         color: isDark ? "#0c1118" : "#ffffff",
         symbolColor: isDark ? "#d9deea" : "#364152",

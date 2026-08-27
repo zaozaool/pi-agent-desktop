@@ -59,3 +59,5 @@ next-env.d.ts
 /data/
 # Bun lockfile (project uses npm, see package-lock.json)
 bun.lock
+
+.idea/

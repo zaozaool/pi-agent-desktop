@@ -31,10 +31,19 @@ function getPathName(path: string | null): string {
   return parts[parts.length - 1] ?? "Pi";
 }
 
+// True when running in the Electron desktop shell on macOS, where the native
+// traffic lights sit at the window's top-left and need reserved space.
+function isMacDesktop(): boolean {
+  if (typeof window === "undefined") return false;
+  const electronAPI = (window as { electronAPI?: { platform?: string } }).electronAPI;
+  return electronAPI?.platform === "darwin";
+}
+
 export function AppShell() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { isDark, toggleTheme } = useTheme();
+  const macDesktop = isMacDesktop();
   const [selectedSession, setSelectedSession] = useState<SessionInfo | null>(null);
   // When user clicks +, we only store the cwd — no fake session id
   const [newSessionCwd, setNewSessionCwd] = useState<string | null>(null);
@@ -478,6 +487,10 @@ export function AppShell() {
             minWidth: sidebarOpen ? panelWidths.left : 0,
           }}
         >
+          {/* macOS traffic lights reserve (sidebar open: they land above the sidebar) */}
+          {macDesktop && (
+            <div className="h-toolbar-height shrink-0 [-webkit-app-region:drag]" />
+          )}
           {sidebarContent}
           {sidebarOpen && (
             <div
@@ -494,6 +507,10 @@ export function AppShell() {
         <div className="relative flex-1 flex flex-col overflow-hidden min-w-0">
           {/* Top bar with sidebar toggle */}
           <div ref={topBarRef} className="material-toolbar flex items-center shrink-0 border-b border-divider h-toolbar-height [-webkit-app-region:drag]">
+            {/* macOS traffic lights reserve (sidebar collapsed: they land here) */}
+            {macDesktop && !sidebarOpen && (
+              <div className="w-[78px] h-full shrink-0" />
+            )}
             <button
               onClick={() => setSidebarOpen((v) => !v)}
               title={sidebarOpen ? "Hide sidebar" : "Show sidebar"}
