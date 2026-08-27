@@ -74,11 +74,12 @@ export function ModelSelector({
           setModelDropdownOpen((v) => !v);
         }}
         disabled={isStreaming}
-        title={currentName}
+        title={model ? `${model.provider}/${currentName}` : currentName}
         aria-label={`Change model. Current model: ${currentName}`}
         style={{
-          display: "flex", alignItems: "center", justifyContent: "center",
-          width: 32, padding: 0,
+          display: "flex", alignItems: "center", gap: 6,
+          padding: "8px 12px",
+          maxWidth: 240,
           height: "var(--control-height)",
           background: modelDropdownOpen ? "var(--bg-hover)" : "none",
           border: "none",
@@ -90,7 +91,7 @@ export function ModelSelector({
         }}
         className={isStreaming ? "" : "hover:bg-[var(--bg-hover)] hover:text-[var(--text)] active:scale-95 transition-[background-color,color,transform] duration-150"}
       >
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ flexShrink: 0 }}>
           <rect x="4" y="4" width="16" height="16" rx="2" />
           <rect x="9" y="9" width="6" height="6" />
           <line x1="9" y1="1" x2="9" y2="4" /><line x1="15" y1="1" x2="15" y2="4" />
@@ -98,6 +99,10 @@ export function ModelSelector({
           <line x1="20" y1="9" x2="23" y2="9" /><line x1="20" y1="14" x2="23" y2="14" />
           <line x1="1" y1="9" x2="4" y2="9" /><line x1="1" y1="14" x2="4" y2="14" />
         </svg>
+        <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          {model ? `${model.provider}/` : ""}
+          {currentName}
+        </span>
       </button>
       {modelDropdownOpen && modelDropdownRect && (() => {
         const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
