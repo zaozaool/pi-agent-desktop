@@ -48,11 +48,12 @@ function useScramble(target: string, running: boolean): string {
 }
 
 export function PiAgentTitle() {
-  const [showVersion, setShowVersion] = useState(false);
+  const [showVersion, setShowVersion] = useState(true);
   const [scrambling, setScrambling] = useState(false);
   const revertTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const target = showVersion ? `${process.env.NEXT_PUBLIC_APP_VERSION ?? "0.0.0"}p${process.env.NEXT_PUBLIC_PI_VERSION ?? "0.0.0"}` : "Pi Agent Desktop";
+  const target = showVersion ? `v${process.env.NEXT_PUBLIC_PI_VERSION ?? "0.0.0"}` : "";
+  // const target = showVersion ? `${process.env.NEXT_PUBLIC_APP_VERSION ?? "0.0.0"}p${process.env.NEXT_PUBLIC_PI_VERSION ?? "0.0.0"}` : "Pi Agent Desktop";
   const display = useScramble(target, scrambling);
 
   const triggerScramble = useCallback((toVersion: boolean) => {
@@ -77,11 +78,25 @@ export function PiAgentTitle() {
   return (
     <button
       onClick={handleClick}
-      className={`bg-transparent border-none p-0 cursor-default font-bold text-[15px] tracking-normal font-mono min-w-[6ch] transition-colors duration-150 ${
-        showVersion ? "text-accent" : "text-text-strong"
-      }`}
+      title="Pi Agent Desktop - click to show version"
+      className="flex items-center gap-2 bg-transparent border-none p-0 cursor-pointer group"
     >
-      {display}
+      {/* Logo mark - currentColor so it follows the theme text color */}
+      <svg
+        width="20"
+        height="20"
+        viewBox="0 0 800 800"
+        aria-label="Pi Agent Desktop"
+        className="shrink-0 transition-colors duration-150 text-text-strong group-hover:text-accent"
+      >
+        <path fill="currentColor" fillRule="evenodd" d="M165.29 165.29 H517.36 V400 H400 V517.36 H282.65 V634.72 H165.29 Z M282.65 282.65 V400 H400 V282.65 Z" />
+        <path fill="currentColor" d="M517.36 400 H634.72 V634.72 H517.36 Z" />
+      </svg>
+      {showVersion && (
+        <span className="font-bold text-[13px] tracking-normal font-mono text-accent min-w-[6ch] text-left">
+          {display}
+        </span>
+      )}
     </button>
   );
 }
