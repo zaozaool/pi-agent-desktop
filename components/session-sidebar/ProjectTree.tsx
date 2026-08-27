@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React from "react";
 import { openDirectoryInFileManager, pathBasename } from "./helpers";
 
 interface ProjectTreeProps {
@@ -13,25 +13,19 @@ interface ProjectTreeProps {
   renderProject?: (cwd: string) => React.ReactNode;
   /** Optional session count per cwd, shown right-aligned on project rows */
   sessionCounts?: Record<string, number>;
+  /** Controlled set of expanded project cwds */
+  expanded: Set<string>;
+  onExpandedChange: (next: Set<string>) => void;
 }
 
-export function ProjectTree({ cwds, selectedCwd, onSelect, renderProject, sessionCounts }: ProjectTreeProps) {
-  const [expanded, setExpanded] = useState<Set<string>>(() => new Set(selectedCwd ? [selectedCwd] : []));
-  const [openError, setOpenError] = useState<string | null>(null);
-
-  // Keep the selected project expanded when selection changes from outside
-  useEffect(() => {
-    if (!selectedCwd) return;
-    setExpanded((prev) => (prev.has(selectedCwd) ? prev : new Set([...prev, selectedCwd])));
-  }, [selectedCwd]);
+export function ProjectTree({ cwds, selectedCwd, onSelect, renderProject, sessionCounts, expanded, onExpandedChange }: ProjectTreeProps) {
+  const [openError, setOpenError] = React.useState<string | null>(null);
 
   const toggle = (cwd: string) => {
-    setExpanded((prev) => {
-      const next = new Set(prev);
-      if (next.has(cwd)) next.delete(cwd);
-      else next.add(cwd);
-      return next;
-    });
+    const next = new Set(expanded);
+    if (next.has(cwd)) next.delete(cwd);
+    else next.add(cwd);
+    onExpandedChange(next);
   };
 
   if (cwds.length === 0) return null;
@@ -73,15 +67,9 @@ export function ProjectTree({ cwds, selectedCwd, onSelect, renderProject, sessio
                 <polyline points="3 1.5 7 5 3 8.5" />
               </svg>
 
-              {isSelected ? (
-                <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
-                  <polyline points="1.5 5 4 7.5 8.5 2.5" />
-                </svg>
-              ) : (
-                <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.1" strokeLinejoin="round" className="shrink-0 text-text-dim">
-                  <path d="M1 3A1 1 0 0 1 2 2H4L5 3.5H8.5a.5.5 0 0 1 .5.5v4a.5.5 0 0 1-.5.5h-7A.5.5 0 0 1 1 8V3Z" />
-                </svg>
-              )}
+              <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.1" strokeLinejoin="round" className="shrink-0 text-text-dim">
+                <path d="M1 3A1 1 0 0 1 2 2H4L5 3.5H8.5a.5.5 0 0 1 .5.5v4a.5.5 0 0 1-.5.5h-7A.5.5 0 0 1 1 8V3Z" />
+              </svg>
 
               <span className="flex-1 overflow-hidden text-ellipsis whitespace-nowrap py-[6px]">{pathBasename(cwd)}</span>
 

@@ -69,6 +69,15 @@ export function SessionSidebar({
       // storage unavailable - preference just won't persist
     }
   }, [projectSort]);
+
+  // Controlled expanded-set for the project tree (shared with Collapse/Expand all)
+  const [expandedProjects, setExpandedProjects] = useState<Set<string>>(() => new Set(selectedCwd ? [selectedCwd] : []));
+
+  // Keep the selected project expanded when selection changes from outside
+  useEffect(() => {
+    if (!selectedCwd) return;
+    setExpandedProjects((prev) => (prev.has(selectedCwd) ? prev : new Set([...prev, selectedCwd])));
+  }, [selectedCwd]);
   
   const sessionRefreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const explorerRefreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -142,6 +151,10 @@ export function SessionSidebar({
     () => (projectSort === "alpha" ? sortCwdsAlphabetically(allCwds) : allCwds),
     [allCwds, projectSort]
   );
+  const anyProjectExpanded = sortedCwds.some((cwd) => expandedProjects.has(cwd));
+  const toggleAllProjects = useCallback(() => {
+    setExpandedProjects(anyProjectExpanded ? new Set<string>() : new Set(sortedCwds));
+  }, [anyProjectExpanded, sortedCwds]);
   const sessionTreeByCwd = useMemo(() => {
     const byCwd = new Map<string, ReturnType<typeof buildSessionTree>>();
     for (const cwd of allCwds) {
@@ -260,39 +273,62 @@ export function SessionSidebar({
             No projects yet - open a folder below to get started.
           </div>
         )}
-        {/* Projects section header + sort toggle */}
+        {/* Projects section header + collapse/expand all + sort toggle */}
         {allCwds.length > 0 && (
           <div className="flex items-center justify-between px-2.5 pt-1.5 pb-0.5">
             <span className="text-[10px] font-semibold tracking-[0.04em] uppercase text-text-dim select-none">
               Projects
             </span>
-            <button
-              onClick={() => setProjectSort((m) => (m === "recent" ? "alpha" : "recent"))}
-              aria-label={projectSort === "recent" ? "Sort by recent activity" : "Sort alphabetically"}
-              title={
-                projectSort === "recent"
-                  ? "Sorted by recent activity — click to sort alphabetically"
-                  : "Sorted alphabetically — click to sort by recent activity"
-              }
-              className="flex items-center gap-1 h-[20px] px-1.5 bg-transparent border-none rounded-[3px] text-text-dim hover:text-text hover:bg-bg-hover cursor-pointer transition-colors duration-150"
-            >
-              {projectSort === "recent" ? (
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="12" cy="12" r="9" />
-                  <polyline points="12 7 12 12 15.5 13.5" />
-                </svg>
-              ) : (
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M4 7h9M4 12h6" />
-                  <path d="M16 4v9.5" />
-                  <path d="M13 10.5 16 14l3-3.5" />
-                  <path d="M4 17h16" />
-                </svg>
-              )}
-              <span className="text-[10px] font-medium">
-                {projectSort === "recent" ? "Recent" : "A–Z"}
-              </span>
-            </button>
+            <div className="flex items-center gap-[2px]">
+              <button
+                onClick={toggleAllProjects}
+                aria-label={anyProjectExpanded ? "Collapse all projects" : "Expand all projects"}
+                title={anyProjectExpanded ? "Collapse all projects" : "Expand all projects"}
+                className="flex items-center gap-1 h-[20px] px-1.5 bg-transparent border-none rounded-[3px] text-text-dim hover:text-text hover:bg-bg-hover cursor-pointer transition-colors duration-150"
+              >
+                {anyProjectExpanded ? (
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="6 14 12 8 18 14" />
+                    <polyline points="6 20 12 14 18 20" />
+                  </svg>
+                ) : (
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="6 9 12 15 18 9" />
+                    <polyline points="6 4 12 10 18 4" />
+                  </svg>
+                )}
+                <span className="text-[10px] font-medium">
+                  {anyProjectExpanded ? "Collapse" : "Expand"}
+                </span>
+              </button>
+              <button
+                onClick={() => setProjectSort((m) => (m === "recent" ? "alpha" : "recent"))}
+                aria-label={projectSort === "recent" ? "Sort by recent activity" : "Sort alphabetically"}
+                title={
+                  projectSort === "recent"
+                    ? "Sorted by recent activity — click to sort alphabetically"
+                    : "Sorted alphabetically — click to sort by recent activity"
+                }
+                className="flex items-center gap-1 h-[20px] px-1.5 bg-transparent border-none rounded-[3px] text-text-dim hover:text-text hover:bg-bg-hover cursor-pointer transition-colors duration-150"
+              >
+                {projectSort === "recent" ? (
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="9" />
+                    <polyline points="12 7 12 12 15.5 13.5" />
+                  </svg>
+                ) : (
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M4 7h9M4 12h6" />
+                    <path d="M16 4v9.5" />
+                    <path d="M13 10.5 16 14l3-3.5" />
+                    <path d="M4 17h16" />
+                  </svg>
+                )}
+                <span className="text-[10px] font-medium">
+                  {projectSort === "recent" ? "Recent" : "A–Z"}
+                </span>
+              </button>
+            </div>
           </div>
         )}
         <ProjectTree
@@ -303,6 +339,8 @@ export function SessionSidebar({
           }}
           renderProject={renderProjectSessions}
           sessionCounts={sessionCounts}
+          expanded={expandedProjects}
+          onExpandedChange={setExpandedProjects}
         />
 
         {/* List footer actions (restored from the old project dropdown) */}
