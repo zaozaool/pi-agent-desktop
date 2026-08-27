@@ -6,8 +6,11 @@ import { FileExplorer } from "./FileExplorer";
 import { SidebarHeader } from "./session-sidebar/SidebarHeader";
 import { SessionTreeItem } from "./session-sidebar/SessionTree";
 import { ProjectTree } from "./session-sidebar/ProjectTree";
-import { buildSessionTree, getAllCwds, getRecentCwds, pickDirectoryFromHost } from "./session-sidebar/helpers";
+import { buildSessionTree, getAllCwds, getRecentCwds, pickDirectoryFromHost, sortCwdsAlphabetically } from "./session-sidebar/helpers";
 import { resolveCustomPathSelection } from "@/lib/custom-path-selection";
+
+type ProjectSortMode = "recent" | "alpha";
+const PROJECT_SORT_STORAGE_KEY = "pi.sidebar.projectSort";
 
 interface Props {
   selectedSessionId: string | null;
@@ -54,6 +57,18 @@ export function SessionSidebar({
   const [explorerRefreshDone, setExplorerRefreshDone] = useState(false);
   const [openingProject, setOpeningProject] = useState(false);
   const [cwdPickerError, setCwdPickerError] = useState<string | null>(null);
+  const [projectSort, setProjectSort] = useState<ProjectSortMode>(() => {
+    if (typeof window === "undefined") return "recent";
+    return window.localStorage.getItem(PROJECT_SORT_STORAGE_KEY) === "alpha" ? "alpha" : "recent";
+  });
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(PROJECT_SORT_STORAGE_KEY, projectSort);
+    } catch {
+      // storage unavailable - preference just won't persist
+    }
+  }, [projectSort]);
   
   const sessionRefreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const explorerRefreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -123,6 +138,10 @@ export function SessionSidebar({
   // Group sessions by cwd so the project tree can render each project's
   // session list (fork trees included) inline under its node.
   const allCwds = useMemo(() => getAllCwds(allSessions), [allSessions]);
+  const sortedCwds = useMemo(
+    () => (projectSort === "alpha" ? sortCwdsAlphabetically(allCwds) : allCwds),
+    [allCwds, projectSort]
+  );
   const sessionTreeByCwd = useMemo(() => {
     const byCwd = new Map<string, ReturnType<typeof buildSessionTree>>();
     for (const cwd of allCwds) {
@@ -241,8 +260,43 @@ export function SessionSidebar({
             No projects yet - open a folder below to get started.
           </div>
         )}
+        {/* Projects section header + sort toggle */}
+        {allCwds.length > 0 && (
+          <div className="flex items-center justify-between px-2.5 pt-1.5 pb-0.5">
+            <span className="text-[10px] font-semibold tracking-[0.04em] uppercase text-text-dim select-none">
+              Projects
+            </span>
+            <button
+              onClick={() => setProjectSort((m) => (m === "recent" ? "alpha" : "recent"))}
+              aria-label={projectSort === "recent" ? "Sort by recent activity" : "Sort alphabetically"}
+              title={
+                projectSort === "recent"
+                  ? "Sorted by recent activity — click to sort alphabetically"
+                  : "Sorted alphabetically — click to sort by recent activity"
+              }
+              className="flex items-center gap-1 h-[20px] px-1.5 bg-transparent border-none rounded-[3px] text-text-dim hover:text-text hover:bg-bg-hover cursor-pointer transition-colors duration-150"
+            >
+              {projectSort === "recent" ? (
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="9" />
+                  <polyline points="12 7 12 12 15.5 13.5" />
+                </svg>
+              ) : (
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M4 7h9M4 12h6" />
+                  <path d="M16 4v9.5" />
+                  <path d="M13 10.5 16 14l3-3.5" />
+                  <path d="M4 17h16" />
+                </svg>
+              )}
+              <span className="text-[10px] font-medium">
+                {projectSort === "recent" ? "Recent" : "A–Z"}
+              </span>
+            </button>
+          </div>
+        )}
         <ProjectTree
-          cwds={allCwds}
+          cwds={sortedCwds}
           selectedCwd={selectedCwd}
           onSelect={(cwd) => {
             if (cwd !== selectedCwd) onCwdChange?.(cwd);

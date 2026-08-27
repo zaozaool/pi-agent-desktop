@@ -53,6 +53,14 @@ export function pathBasename(p: string): string {
   return parts[parts.length - 1] ?? p;
 }
 
+/** Sort project cwds alphabetically by folder name, case-insensitive (stable tie-break on full path) */
+export function sortCwdsAlphabetically(cwds: string[]): string[] {
+  return [...cwds].sort((a, b) => {
+    const byName = pathBasename(a).localeCompare(pathBasename(b), undefined, { sensitivity: "base" });
+    return byName !== 0 ? byName : a.localeCompare(b);
+  });
+}
+
 /** Reveal a directory in the OS file manager (Finder / Explorer) */
 export async function openDirectoryInFileManager(dirPath: string): Promise<void> {
   const res = await fetch("/api/open-directory", {

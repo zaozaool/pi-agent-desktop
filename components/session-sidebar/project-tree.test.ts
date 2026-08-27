@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { getAllCwds, pathBasename, shortenCwd } from "./helpers.ts";
+import { getAllCwds, pathBasename, shortenCwd, sortCwdsAlphabetically } from "./helpers.ts";
 import type { SessionInfo } from "../../lib/types.ts";
 
 function makeSession(overrides: Partial<SessionInfo>): SessionInfo {
@@ -42,3 +42,8 @@ test("shortenCwd collapses deep paths to last two segments", () => {
   assert.equal(shortenCwd("/Users/alice/work/proj"), "…/alice/work".slice(0, 0) + "…/work/proj");
   assert.equal(shortenCwd("/w/proj"), "/w/proj");
 });
+
+test("sortCwdsAlphabetically is case-insensitive with full-path tie-break", () => {
+  const cwds = ["/w/Zebra", "/w/apple", "/w/Banana", "/x/apple"];
+  assert.deepEqual(sortCwdsAlphabetically(cwds), ["/w/apple", "/x/apple", "/w/Banana", "/w/Zebra"]);
+});;
