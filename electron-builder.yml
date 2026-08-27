@@ -9,6 +9,8 @@ directories:
 files:
   - package.json
   - build/icon.ico
+  - build/tray-icon-mac.png
+  - build/tray-icon-mac@2x.png
   - electron/dist/**/*
   - "!electron/**/*.ts"
   - "!electron/tsconfig.json"
@@ -69,6 +71,13 @@ asar: true
 npmRebuild: true
 
 electronDist: node_modules/electron/dist
+
+mac:
+  icon: build/icon.icns
+  category: public.app-category.developer-tools
+  target:
+    - target: dmg
+  # 未签名/未公证：首次打开需右键 -> 打开绕过 Gatekeeper
 
 win:
   target:

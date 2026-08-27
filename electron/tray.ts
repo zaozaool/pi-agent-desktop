@@ -2,32 +2,44 @@ import { app, Menu, Tray, BrowserWindow, nativeImage } from "electron";
 import path from "path";
 import { setQuitting } from "./main";
 
-export function createTray(mainWindow: BrowserWindow): Tray {
+const FALLBACK_PNG_BASE64 =
+  "iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAFElEQVQ4y2N" +
+  "kwAT/GYYBYwYDAKLuAf8LSXNHAAAAABJRU5ErkJggg==";
+
+function fallbackIcon(): Electron.NativeImage {
+  // minimal 16x16 transparent PNG
+  return nativeImage.createFromBuffer(Buffer.from(FALLBACK_PNG_BASE64, "base64"));
+}
+
+function loadMacTemplateIcon(): Electron.NativeImage | null {
+  // macOS menu bar: black template image so the glyph adapts to light/dark
+  // menu bars automatically. @2x representation covers retina displays.
+  const basePath = path.join(app.getAppPath(), "build", "tray-icon-mac.png");
+  const retinaPath = path.join(app.getAppPath(), "build", "tray-icon-mac@2x.png");
+  const icon = nativeImage.createFromPath(basePath);
+  if (icon.isEmpty()) return null;
+  const retina = nativeImage.createFromPath(retinaPath);
+  if (!retina.isEmpty()) {
+    icon.addRepresentation({ scaleFactor: 2, buffer: retina.toPNG(), width: 16, height: 16 });
+  }
+  icon.setTemplateImage(true);
+  return icon;
+}
+
+function loadWindowsIcon(): Electron.NativeImage {
   // Use .ico for Windows tray icon (SVG not reliably supported on Win10)
   const iconPath = path.join(app.getAppPath(), "build", "icon.ico");
-
-  let icon: Electron.NativeImage;
   try {
-    icon = nativeImage.createFromPath(iconPath);
-    if (icon.isEmpty()) {
-      // Fallback: create a minimal 16x16 transparent PNG
-      icon = nativeImage.createFromBuffer(
-        Buffer.from(
-          "iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAFElEQVQ4y2N" +
-            "kwAT/GYYBYwYDAKLuAf8LSXNHAAAAABJRU5ErkJggg==",
-          "base64"
-        )
-      );
-    }
+    const icon = nativeImage.createFromPath(iconPath);
+    return icon.isEmpty() ? fallbackIcon() : icon;
   } catch {
-    icon = nativeImage.createFromBuffer(
-      Buffer.from(
-        "iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAFElEQVQ4y2N" +
-          "kwAT/GYYBYwYDAKLuAf8LSXNHAAAAABJRU5ErkJggg==",
-          "base64"
-      )
-    );
+    return fallbackIcon();
   }
+}
+
+export function createTray(mainWindow: BrowserWindow): Tray {
+  const icon =
+    process.platform === "darwin" ? (loadMacTemplateIcon() ?? loadWindowsIcon()) : loadWindowsIcon();
 
   const tray = new Tray(icon);
   tray.setToolTip("Pi Agent Desktop");

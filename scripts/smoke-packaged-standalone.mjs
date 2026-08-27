@@ -34,17 +34,24 @@ function findPackagedOutput() {
       : null;
   }
 
-  const macDir = join(releaseDir, "mac");
-  if (process.platform === "darwin" && existsSync(macDir)) {
-    for (const entry of readdirSync(macDir, { withFileTypes: true })) {
-      if (!entry.isDirectory() || !entry.name.endsWith(".app")) continue;
-      const appDir = join(macDir, entry.name, "Contents");
-      const standaloneDir = join(appDir, "Resources", "standalone");
-      const runtimeExecutable = join(appDir, "MacOS", entry.name.slice(0, -4));
-      if (hasStandaloneServer(standaloneDir) && existsSync(runtimeExecutable)) {
-        return { standaloneDir, runtimeExecutable };
+  // electron-builder emits "mac" (single-arch dmg/dir) or "mac-arm64" /
+  // "mac-universal" / "mac-x64" depending on the target arch configuration.
+  const macCandidates = ["mac", "mac-arm64", "mac-universal", "mac-x64"]
+    .map((name) => join(releaseDir, name))
+    .filter((dir) => existsSync(dir));
+  if (process.platform === "darwin" && macCandidates.length > 0) {
+    for (const macDir of macCandidates) {
+      for (const entry of readdirSync(macDir, { withFileTypes: true })) {
+        if (!entry.isDirectory() || !entry.name.endsWith(".app")) continue;
+        const appDir = join(macDir, entry.name, "Contents");
+        const standaloneDir = join(appDir, "Resources", "standalone");
+        const runtimeExecutable = join(appDir, "MacOS", entry.name.slice(0, -4));
+        if (hasStandaloneServer(standaloneDir) && existsSync(runtimeExecutable)) {
+          return { standaloneDir, runtimeExecutable };
+        }
       }
     }
+    return null;
   }
 
   return null;
