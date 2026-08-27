@@ -405,7 +405,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
           e.target.value = "";
         }}
       />
-      <div style={{ maxWidth: 820, margin: "0 auto" }}>
+      <div style={{ maxWidth: 1024, margin: "0 auto" }}>
         {/* Retry banner */}
         {retryInfo && (
           <div style={{

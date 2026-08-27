@@ -288,7 +288,7 @@ export function ChatWindow({ session, newSessionCwd, onAgentEnd, onSessionCreate
 
       {isEmptyNew ? (
         <div className="relative flex min-h-0 flex-1 flex-col items-center justify-center overflow-y-auto px-4 py-10 md:py-16">
-          <div className="flex w-full max-w-[820px] flex-col justify-center">
+          <div className="flex w-full max-w-[1024px] flex-col justify-center">
             <div className="mb-8 flex justify-center select-none">
               <Image
                 src="/logo.png"
@@ -309,7 +309,7 @@ export function ChatWindow({ session, newSessionCwd, onAgentEnd, onSessionCreate
       <>
       <div className="relative flex flex-1 overflow-hidden">
         <div ref={scrollContainerRef} className="flex-1 overflow-y-auto pt-4 [scrollbar-width:none]">
-          <div className="mx-auto max-w-[820px] px-4">
+          <div className="mx-auto max-w-[1024px] px-4">
 
             <MessageList
               messages={messages}
