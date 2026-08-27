@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { pathBasename } from "./helpers";
+import { openDirectoryInFileManager, pathBasename } from "./helpers";
 
 interface ProjectTreeProps {
   /** All project directories, most recently active first */
@@ -17,6 +17,7 @@ interface ProjectTreeProps {
 
 export function ProjectTree({ cwds, selectedCwd, onSelect, renderProject, sessionCounts }: ProjectTreeProps) {
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set(selectedCwd ? [selectedCwd] : []));
+  const [openError, setOpenError] = useState<string | null>(null);
 
   // Keep the selected project expanded when selection changes from outside
   useEffect(() => {
@@ -45,7 +46,7 @@ export function ProjectTree({ cwds, selectedCwd, onSelect, renderProject, sessio
         return (
           <div key={cwd}>
             <div
-              className={`flex items-center gap-[5px] w-full pr-2.5 border-none text-left text-[11px] font-mono cursor-pointer ${
+              className={`group flex items-center gap-[5px] w-full pr-2.5 border-none text-left text-[11px] font-mono cursor-pointer ${
                 isSelected ? "bg-bg-selected text-text" : "bg-transparent text-text-muted hover:bg-bg-hover"
               }`}
               style={{ paddingLeft: 8 }}
@@ -89,7 +90,33 @@ export function ProjectTree({ cwds, selectedCwd, onSelect, renderProject, sessio
                   {count}
                 </span>
               )}
+
+              {/* Reveal in Finder / Explorer - visible on hover */}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setOpenError(null);
+                  openDirectoryInFileManager(cwd).catch((err) => {
+                    setOpenError(err instanceof Error ? err.message : String(err));
+                  });
+                }}
+                aria-label="Open in file manager"
+                title={`Open ${cwd} in file manager`}
+                className="flex items-center justify-center w-[18px] h-[18px] p-0 shrink-0 bg-transparent border-none rounded-[3px] text-text-dim hover:text-text hover:bg-chrome-button-hover cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity duration-150"
+              >
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M3 7a2 2 0 0 1 2-2h4l2 2.5h8a2 2 0 0 1 2 2V17a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z" />
+                  <path d="M9 14l3-3 3 3" />
+                  <line x1="12" y1="11" x2="12" y2="16" />
+                </svg>
+              </button>
             </div>
+
+            {isSelected && openError && (
+              <div className="px-2.5 pb-1.5 text-[11px]" style={{ color: "var(--danger)", marginLeft: 8 }}>
+                {openError}
+              </div>
+            )}
 
             {isOpen && renderProject ? renderProject(cwd) : null}
           </div>

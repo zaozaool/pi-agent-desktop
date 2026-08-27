@@ -217,33 +217,64 @@ export function ChatMinimap({ messages, streamingMessage, scrollContainer, messa
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Compute collision-free tooltip positions for all nodes
-  const TOOLTIP_HEIGHT = 22;
+  // Proportional tooltip layout: each card's height mirrors the real message
+  // height (heightRatio * minimap height, min one text line). Cards keep their
+  // mirrored top position; overlaps are pushed apart. The whole stack then
+  // scrolls vertically following the mouse when it is taller than the minimap.
+  const TOOLTIP_MIN_HEIGHT = 22;
   const TOOLTIP_GAP = 2;
+  const TOOLTIP_PAD = 6; // breathing room at the top/bottom of the minimap
 
-  const tooltipPositions = useMemo(() => {
-    if (!minimapHovered || nodes.length === 0) return [];
-    // Initial positions: centered on the dot
-    const positions = nodes.map((node) =>
-      Math.round(node.topRatio * minimapHeightPx - TOOLTIP_HEIGHT / 2)
-    );
-    // Iterative push-apart to resolve overlaps (top-to-bottom pass, then bottom-to-top)
+  const tooltipLayout = useMemo(() => {
+    if (!minimapHovered || nodes.length === 0) return null;
+    const cards = nodes.map((node) => {
+      const height = Math.max(TOOLTIP_MIN_HEIGHT, node.heightRatio * minimapHeightPx);
+      return { top: node.topRatio * minimapHeightPx - height / 2, height };
+    });
+    // Push apart overlapping cards (top-down then bottom-up passes)
     for (let pass = 0; pass < 10; pass++) {
-      for (let i = 1; i < positions.length; i++) {
-        const minTop = positions[i - 1] + TOOLTIP_HEIGHT + TOOLTIP_GAP;
-        if (positions[i] < minTop) positions[i] = minTop;
+      for (let i = 1; i < cards.length; i++) {
+        const minTop = cards[i - 1].top + cards[i - 1].height + TOOLTIP_GAP;
+        if (cards[i].top < minTop) cards[i].top = minTop;
       }
-      for (let i = positions.length - 2; i >= 0; i--) {
-        const maxTop = positions[i + 1] - TOOLTIP_HEIGHT - TOOLTIP_GAP;
-        if (positions[i] > maxTop) positions[i] = maxTop;
+      for (let i = cards.length - 2; i >= 0; i--) {
+        const maxTop = cards[i + 1].top - cards[i].height - TOOLTIP_GAP;
+        if (cards[i].top > maxTop) cards[i].top = maxTop;
       }
     }
-    // Clamp all to minimap bounds
-    for (let i = 0; i < positions.length; i++) {
-      positions[i] = Math.max(0, Math.min(minimapHeightPx - TOOLTIP_HEIGHT, positions[i]));
+    // Normalize so the first card starts below the top padding
+    const firstTop = cards[0].top;
+    if (firstTop !== TOOLTIP_PAD) {
+      for (const card of cards) card.top -= firstTop - TOOLTIP_PAD;
     }
-    return positions;
+    const stackHeight = cards[cards.length - 1].top + cards[cards.length - 1].height;
+    return { cards, stackHeight };
   }, [minimapHovered, nodes, minimapHeightPx]);
+
+  // Scroll the tooltip stack so the card nearest the mouse stays under the
+  // cursor; clamped so the stack never leaves the minimap bounds.
+  const tooltipScrollOffset = useMemo(() => {
+    if (!tooltipLayout || mouseYRatio === null) return 0;
+    const { cards, stackHeight } = tooltipLayout;
+    // Keep the stack inside [TOOLTIP_PAD, minimapHeightPx - TOOLTIP_PAD]:
+    // offset 0 when it fits, otherwise scroll within clamped bounds.
+    const lo = Math.min(0, minimapHeightPx - 2 * TOOLTIP_PAD - stackHeight);
+    if (lo === 0) return 0;
+
+    // Nearest node to the mouse
+    let nearest = 0;
+    for (let i = 1; i < nodes.length; i++) {
+      if (Math.abs(nodes[i].topRatio - mouseYRatio) < Math.abs(nodes[nearest].topRatio - mouseYRatio)) {
+        nearest = i;
+      }
+    }
+    const card = cards[nearest];
+    if (!card) return 0;
+    const cardCenter = card.top + card.height / 2;
+    const mouseY = mouseYRatio * minimapHeightPx;
+    const offset = mouseY - cardCenter;
+    return Math.max(lo, Math.min(0, offset));
+  }, [tooltipLayout, mouseYRatio, nodes, minimapHeightPx]);
 
   if (!visible) return null;
 
@@ -352,49 +383,81 @@ export function ChatMinimap({ messages, streamingMessage, scrollContainer, messa
         }}
       />
 
-      {/* Tooltips for all nodes, collision-free positions */}
-      {minimapHovered && nodes.map((node, i) => {
-        const preview = getMessagePreview(node.msg);
-        const color = getNodeColor(node.msg);
-        const isNearest = nearestIndex === node.index;
-        if (!preview || tooltipPositions.length === 0) return null;
-        return (
-          <div
-            key={node.index}
-            style={{
-              position: "absolute",
-              top: tooltipPositions[i],
-              right: "100%",
-              marginRight: 6,
-              background: "var(--bg-elevated)",
-              borderTop: `1px solid ${isNearest ? color.border : "var(--border)"}`,
-              borderRight: `1px solid ${isNearest ? color.border : "var(--border)"}`,
-              borderBottom: `1px solid ${isNearest ? color.border : "var(--border)"}`,
-              borderLeft: `2px solid ${color.border}`,
-              borderRadius: "var(--radius-control)",
-              padding: "2px 7px",
-              width: 200,
-              zIndex: 100,
-              pointerEvents: "none",
-              opacity: isNearest ? 1 : 0.45,
-              transition: "top 0.1s, opacity 0.1s",
-            }}
-          >
-            <div
-              style={{
-                fontSize: 11,
-                color: isNearest ? "var(--text)" : "var(--text-muted)",
-                lineHeight: 1.4,
-                whiteSpace: "nowrap",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-              }}
-            >
-              {preview}
-            </div>
-          </div>
-        );
-      })}
+      {/* Tooltips for all nodes: proportional heights, stack scrolls with mouse */}
+      {minimapHovered && tooltipLayout && (
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            pointerEvents: "none",
+            transform: `translateY(${tooltipScrollOffset}px)`,
+            transition: "transform 0.15s ease-out",
+          }}
+        >
+          {nodes.map((node, i) => {
+            const preview = getMessagePreview(node.msg);
+            const color = getNodeColor(node.msg);
+            const isNearest = nearestIndex === node.index;
+            const isUser = node.msg.role === "user";
+            if (!preview) return null;
+            const card = tooltipLayout.cards[i];
+            return (
+              <div
+                key={node.index}
+                style={{
+                  position: "absolute",
+                  top: card.top,
+                  height: card.height,
+                  right: "100%",
+                  marginRight: 6,
+                  background: isUser ? "var(--user-bg)" : "var(--bg-elevated)",
+                  borderTop: `1px solid ${isNearest ? color.border : "var(--border)"}`,
+                  borderRight: `1px solid ${isNearest ? color.border : "var(--border)"}`,
+                  borderBottom: `1px solid ${isNearest ? color.border : "var(--border)"}`,
+                  borderLeft: isUser ? "3px solid var(--accent)" : `1px solid ${isNearest ? color.border : "var(--border)"}`,
+                  borderRadius: "var(--radius-control)",
+                  padding: "2px 7px",
+                  width: 200,
+                  zIndex: 100,
+                  opacity: isNearest ? 1 : 0.45,
+                  transition: "top 0.1s, height 0.1s, opacity 0.1s",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 5,
+                  overflow: "hidden",
+                }}
+              >
+                {/* Role icon: person = user, sparkle = assistant */}
+                {isUser ? (
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                    <circle cx="12" cy="7" r="4" />
+                  </svg>
+                ) : (
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
+                    <path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3z" />
+                  </svg>
+                )}
+                <div
+                  style={{
+                    fontSize: 11,
+                    color: isNearest ? "var(--text)" : "var(--text-muted)",
+                    fontWeight: isUser ? 600 : 400,
+                    lineHeight: 1.4,
+                    whiteSpace: "nowrap",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    flex: 1,
+                    minWidth: 0,
+                  }}
+                >
+                  {preview}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

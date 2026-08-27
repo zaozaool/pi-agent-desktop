@@ -53,6 +53,25 @@ export function pathBasename(p: string): string {
   return parts[parts.length - 1] ?? p;
 }
 
+/** Reveal a directory in the OS file manager (Finder / Explorer) */
+export async function openDirectoryInFileManager(dirPath: string): Promise<void> {
+  const res = await fetch("/api/open-directory", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ path: dirPath }),
+  });
+  if (!res.ok) {
+    let message = `HTTP ${res.status}`;
+    try {
+      const data = (await res.json()) as { error?: string };
+      if (data.error) message = data.error;
+    } catch {
+      // keep HTTP status message
+    }
+    throw new Error(message);
+  }
+}
+
 type ElectronAPI = {
   selectDirectory?: () => Promise<string | null>;
 };
