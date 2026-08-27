@@ -161,6 +161,26 @@ export function ChatWindow({ session, newSessionCwd, onAgentEnd, onSessionCreate
 
   const isEmptyNew = isNew && messages.length === 0 && !streamState.isStreaming && !agentRunning;
 
+  // "Scroll to bottom" quick action: visible whenever the message list is
+  // scrolled away from the bottom. Re-evaluated on scroll, on message-count
+  // changes and once on mount (covers initial history loads).
+  const [isAtBottom, setIsAtBottom] = useState(true);
+  useEffect(() => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+    const update = () => {
+      const distance = container.scrollHeight - container.scrollTop - container.clientHeight;
+      setIsAtBottom(distance < 120);
+    };
+    update();
+    container.addEventListener("scroll", update, { passive: true });
+    return () => container.removeEventListener("scroll", update);
+  }, [scrollContainerRef, messages.length, isNew]);
+
+  const handleScrollToBottom = useCallback(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+  }, [messagesEndRef]);
+
   const availableThinkingLevels = displayModelValue
     ? (modelThinkingLevels[`${displayModelValue.provider}:${displayModelValue.modelId}`] ?? null)
     : null;
@@ -350,6 +370,20 @@ export function ChatWindow({ session, newSessionCwd, onAgentEnd, onSessionCreate
       </div>
 
       <div className="relative">
+        {!isAtBottom && (
+          <button
+            type="button"
+            onClick={handleScrollToBottom}
+            aria-label="滚动到底部"
+            title="滚动到底部"
+            className="chat-scroll-bottom-btn absolute bottom-full left-1/2 z-40 mb-2 -translate-x-1/2 grid h-8 w-8 place-items-center rounded-full border border-border bg-bg-elevated text-text-muted shadow-popover transition-[background-color,color,transform] duration-150 hover:bg-bg-hover hover:text-text active:scale-90"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="12" y1="4" x2="12" y2="20" />
+              <polyline points="5 13 12 20 19 13" />
+            </svg>
+          </button>
+        )}
         {chatInputElement}
       </div>
       </>

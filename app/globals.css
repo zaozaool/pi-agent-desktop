@@ -568,6 +568,7 @@ span.linenumber {
 
 @media (prefers-reduced-motion: reduce) {
   .t-resize { transition: none !important; }
+  .chat-scroll-bottom-btn { animation: none !important; transition: none !important; }
   .composer-shell::after { transition: none !important; }
   .composer-icon-button { transition: none !important; }
   .composer-icon-button:active { transform: none !important; }
@@ -993,6 +994,13 @@ span.linenumber {
 }
 
 /* Custom layout overrides to ensure pixel-perfect titlebar and heights */
+.chat-scroll-bottom-btn {
+  animation: chat-scroll-bottom-btn-in 150ms ease-out;
+}
+@keyframes chat-scroll-bottom-btn-in {
+  from { opacity: 0; transform: translate(-50%, 4px) scale(0.9); }
+  to { opacity: 1; transform: translate(-50%, 0) scale(1); }
+}
 .w-titlebar {
   width: env(titlebar-area-width, 138px) !important;
 }
