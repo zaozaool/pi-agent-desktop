@@ -40,32 +40,37 @@ export function AgentModeSelector({ mode, disabled, onChange }: Props) {
         style={{
           display: "flex",
           alignItems: "center",
-          justifyContent: "center",
-          width: 32,
-          padding: 0,
+          gap: 6,
+          padding: "8px 12px",
           height: "var(--control-height)",
           background: open ? "var(--bg-hover)" : "none",
           border: "none",
           borderRadius: "var(--radius-control)",
           color: "var(--text-muted)",
           cursor: disabled ? "not-allowed" : "pointer",
+          fontSize: 12,
           opacity: disabled ? 0.5 : 1,
         }}
-        className={disabled ? "" : "hover:bg-[var(--bg-hover)] hover:text-[var(--text)]"}
+        className={disabled ? "" : "hover:bg-[var(--bg-hover)] hover:text-[var(--text)] active:scale-95 transition-[background-color,color,transform] duration-150"}
       >
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ flexShrink: 0 }}>
           <path d="M12 3 19 6v5c0 4.6-2.9 8-7 10-4.1-2-7-5.4-7-10V6l7-3Z" />
           <path d="m9.5 12 1.7 1.7 3.5-3.7" />
         </svg>
+        <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          {current.label}
+        </span>
       </button>
       {open && (
         <div
+          className="t-dropdown is-open material-popover"
+          data-origin="bottom-left"
           style={{
             position: "absolute",
             bottom: "calc(100% + 6px)",
             left: 0,
             zIndex: 100,
-            background: "var(--bg)",
+            background: "var(--material-popover)",
             border: "1px solid var(--border)",
             borderRadius: "var(--radius-panel)",
             boxShadow: "var(--shadow-popover)",

@@ -10,6 +10,7 @@ import { AttachmentPreview } from "./chat-input/AttachmentPreview";
 import { ModelSelector } from "./chat-input/ModelSelector";
 import { PresetSelector } from "./chat-input/PresetSelector";
 import { AgentModeSelector } from "./AgentModeSelector";
+import { ThinkingLevelSelector } from "./chat-input/ThinkingLevelSelector";
 import { resolveComposerSubmitAction } from "./chat-input/submit-action";
 import { QueuedMessageList } from "./chat-input/QueuedMessageList";
 import type { AgentMode } from "@/lib/approval-policy";
@@ -46,17 +47,6 @@ interface Props {
   onReorderFollowUps?: (orderedIds: string[]) => void;
 }
 
-const THINKING_LEVELS = ["auto", "off", "minimal", "low", "medium", "high", "xhigh"] as const;
-const THINKING_LEVEL_DESC: Record<typeof THINKING_LEVELS[number], string> = {
-  auto: "沿用 pi 默认设置",
-  off: "关闭推理",
-  minimal: "最少推理",
-  low: "低强度推理",
-  medium: "中等推理",
-  high: "高强度推理",
-  xhigh: "最高强度推理",
-};
-
 export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
   onSend, onAbort, onSteer, onFollowUp, isStreaming, model, modelNames, modelList, onModelChange,
   currentCwd,
@@ -68,7 +58,6 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
   followUpQueue, followUpQueueBusy, onReorderFollowUps,
 }: Props, ref) {
   const [value, setValue] = useState("");
-  const [thinkingDropdownOpen, setThinkingDropdownOpen] = useState(false);
   const [secondaryControlsOpen, setSecondaryControlsOpen] = useState(false);
   const [attachedImages, setAttachedImages] = useState<AttachedImage[]>([]);
   // 跟踪最新 attachedImages 供 unmount cleanup 读取（避免捕获 mount 时空数组快照）
@@ -92,7 +81,6 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const textareaResizeFrameRef = useRef(0);
-  const thinkingDropdownRef = useRef<HTMLDivElement>(null);
   const secondaryControlsRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -356,23 +344,18 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
 
   useEffect(() => {
     if (!isStreaming) return;
-    setThinkingDropdownOpen(false);
     setSecondaryControlsOpen(false);
   }, [isStreaming]);
 
   // Close composer popovers on outside click or Escape.
   useEffect(() => {
     const handlePointerDown = (e: MouseEvent) => {
-      if (thinkingDropdownRef.current && !thinkingDropdownRef.current.contains(e.target as Node)) {
-        setThinkingDropdownOpen(false);
-      }
       if (secondaryControlsRef.current && !secondaryControlsRef.current.contains(e.target as Node)) {
         setSecondaryControlsOpen(false);
       }
     };
     const handleKeyDown = (e: globalThis.KeyboardEvent) => {
       if (e.key !== "Escape") return;
-      setThinkingDropdownOpen(false);
       setSecondaryControlsOpen(false);
     };
     document.addEventListener("mousedown", handlePointerDown);
@@ -732,6 +715,16 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
               />
             )}
 
+            {!isStreaming && onThinkingLevelChange && (
+              <ThinkingLevelSelector
+                isStreaming={isStreaming}
+                thinkingLevel={thinkingLevel}
+                availableThinkingLevels={availableThinkingLevels}
+                thinkingLevelMap={thinkingLevelMap}
+                onThinkingLevelChange={onThinkingLevelChange}
+              />
+            )}
+
             {!isStreaming && (
               <div ref={secondaryControlsRef} className="relative">
                 <button
@@ -749,90 +742,6 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                   </svg>
                 </button>
                 <div className={`composer-secondary-menu t-dropdown material-popover absolute bottom-[calc(100%+6px)] right-0 z-[550] flex min-w-48 flex-col gap-1 rounded-panel border border-border p-1.5 shadow-popover${secondaryControlsOpen ? " is-open" : ""}`} data-origin="bottom-right">
-            {!isStreaming && onThinkingLevelChange && (
-              <div ref={thinkingDropdownRef} style={{ position: "relative" }}>
-                <button
-                  onClick={() => !isStreaming && setThinkingDropdownOpen((v) => !v)}
-                  disabled={isStreaming}
-                  title="切换推理强度"
-                  style={{
-                    display: "flex", alignItems: "center", gap: 5,
-                    padding: "8px 12px",
-                    height: "var(--control-height)",
-                    background: thinkingDropdownOpen ? "var(--bg-hover)" : "none",
-                    border: "none",
-                    borderRadius: "var(--radius-control)",
-                    color: "var(--text-muted)",
-                    cursor: isStreaming ? "not-allowed" : "pointer",
-                    fontSize: 12,
-                    opacity: isStreaming ? 0.5 : 1,
-                  }}
-                  className={isStreaming ? "" : "hover:bg-[var(--bg-hover)] hover:text-[var(--text)] active:scale-95 transition-[background-color,color,transform] duration-150"}
-                >
-                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M9.5 2A5.5 5.5 0 0 0 4 7.5c0 1.7.78 3.21 2 4.21V14a1 1 0 0 0 1 1h5a1 1 0 0 0 1-1v-2.29c1.22-1 2-2.51 2-4.21A5.5 5.5 0 0 0 9.5 2z" />
-                    <line x1="7" y1="18" x2="12" y2="18" />
-                    <line x1="8" y1="21" x2="11" y2="21" />
-                  </svg>
-                  <span>{(() => {
-                    const lvl = thinkingLevel ?? "auto";
-                    if (lvl === "auto" || !thinkingLevelMap) return lvl;
-                    const mapped = thinkingLevelMap[lvl];
-                    return mapped != null ? mapped : lvl;
-                  })()}</span>
-                </button>
-                {thinkingDropdownOpen && (
-                  <div
-                    className="t-dropdown is-open material-popover"
-                    data-origin="bottom-right"
-                    style={{
-                    position: "absolute", bottom: "calc(100% + 6px)", right: 0,
-                    zIndex: 100, background: "var(--material-popover)", border: "1px solid var(--border)",
-                    borderRadius: "var(--radius-panel)", boxShadow: "var(--shadow-popover)",
-                    overflow: "hidden", minWidth: 180,
-                  }}>
-                    {THINKING_LEVELS.filter((lvl) => {
-                      if (!availableThinkingLevels) return true;
-                      if (lvl === "auto") return true;
-                      return availableThinkingLevels.includes(lvl);
-                    }).map((lvl) => {
-                      const isActive = (thinkingLevel ?? "auto") === lvl;
-                      const desc = THINKING_LEVEL_DESC[lvl];
-                      const mappedVal = (lvl !== "auto" && thinkingLevelMap) ? thinkingLevelMap[lvl] : undefined;
-                      const displayLabel = (mappedVal != null && mappedVal !== lvl) ? mappedVal : lvl;
-                      const showOriginal = mappedVal != null && mappedVal !== lvl;
-                      return (
-                        <button
-                          key={lvl}
-                          onClick={() => { setThinkingDropdownOpen(false); if (!isActive) onThinkingLevelChange(lvl); }}
-                          style={{
-                            display: "flex", alignItems: "center", gap: 8,
-                            width: "100%", padding: "7px 12px",
-                            background: isActive ? "var(--bg-selected)" : "none",
-                            border: "none",
-                            color: isActive ? "var(--text)" : "var(--text-muted)",
-                            cursor: "pointer", fontSize: 12, textAlign: "left",
-                            fontWeight: isActive ? 600 : 400,
-                            whiteSpace: "nowrap",
-                          }}
-                          className={isActive ? "" : "hover:bg-[var(--bg-hover)] transition-colors duration-150"}
-                        >
-                          {isActive
-                            ? <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><polyline points="1.5 5 4 7.5 8.5 2.5" /></svg>
-                            : <span style={{ width: 10, flexShrink: 0 }} />}
-                          <span style={{ flex: 1 }}>
-                            {displayLabel}
-                            {showOriginal && <span style={{ fontSize: 10, color: "var(--text-dim)", fontFamily: "var(--font-mono)", marginLeft: 5 }}>({lvl})</span>}
-                          </span>
-                          <span style={{ fontSize: 11, color: "var(--text-dim)", marginLeft: 8 }}>{desc}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            )}
-
             {/* Tool preset */}
             {!isStreaming && onToolPresetChange && (
               <PresetSelector
