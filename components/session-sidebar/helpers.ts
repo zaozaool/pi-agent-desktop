@@ -19,8 +19,8 @@ export function formatRelativeTime(dateStr: string): string {
   return date.toLocaleDateString();
 }
 
-/** Return the 5 most recently active cwds across all sessions */
-export function getRecentCwds(sessions: SessionInfo[]): string[] {
+/** All unique cwds across sessions, sorted by most recent activity */
+export function getAllCwds(sessions: SessionInfo[]): string[] {
   const latestByCwd = new Map<string, string>(); // cwd -> most recent modified
   for (const s of sessions) {
     if (!s.cwd) continue;
@@ -31,8 +31,12 @@ export function getRecentCwds(sessions: SessionInfo[]): string[] {
   }
   return [...latestByCwd.entries()]
     .sort((a, b) => b[1].localeCompare(a[1]))
-    .slice(0, 5)
     .map(([cwd]) => cwd);
+}
+
+/** Return the 5 most recently active cwds across all sessions */
+export function getRecentCwds(sessions: SessionInfo[]): string[] {
+  return getAllCwds(sessions).slice(0, 5);
 }
 
 export function shortenCwd(cwd: string, homeDir?: string): string {
@@ -41,6 +45,12 @@ export function shortenCwd(cwd: string, homeDir?: string): string {
   const parts = path.split(sep).filter(Boolean);
   if (parts.length <= 2) return path;
   return "…/" + parts.slice(-2).join(sep);
+}
+
+/** Basename of a path, handling both unix and windows separators */
+export function pathBasename(p: string): string {
+  const parts = p.split(/[\\/]/).filter(Boolean);
+  return parts[parts.length - 1] ?? p;
 }
 
 type ElectronAPI = {

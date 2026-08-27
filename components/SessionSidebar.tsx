@@ -1,11 +1,13 @@
 "use client";
 
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import type { SessionInfo } from "@/lib/types";
 import { FileExplorer } from "./FileExplorer";
 import { SidebarHeader } from "./session-sidebar/SidebarHeader";
 import { SessionTreeItem } from "./session-sidebar/SessionTree";
-import { buildSessionTree, getRecentCwds } from "./session-sidebar/helpers";
+import { ProjectTree } from "./session-sidebar/ProjectTree";
+import { buildSessionTree, getAllCwds, getRecentCwds, pickDirectoryFromHost } from "./session-sidebar/helpers";
+import { resolveCustomPathSelection } from "@/lib/custom-path-selection";
 
 interface Props {
   selectedSessionId: string | null;
@@ -50,6 +52,8 @@ export function SessionSidebar({
   const [explorerKey, setExplorerKey] = useState(0);
   const [sessionRefreshDone, setSessionRefreshDone] = useState(false);
   const [explorerRefreshDone, setExplorerRefreshDone] = useState(false);
+  const [openingProject, setOpeningProject] = useState(false);
+  const [cwdPickerError, setCwdPickerError] = useState<string | null>(null);
   
   const sessionRefreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const explorerRefreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -116,33 +120,109 @@ export function SessionSidebar({
     };
   }, []);
 
-  const filteredSessions = selectedCwd
-    ? allSessions.filter((s) => s.cwd === selectedCwd)
-    : allSessions;
+  // Group sessions by cwd so the project tree can render each project's
+  // session list (fork trees included) inline under its node.
+  const allCwds = useMemo(() => getAllCwds(allSessions), [allSessions]);
+  const sessionTreeByCwd = useMemo(() => {
+    const byCwd = new Map<string, ReturnType<typeof buildSessionTree>>();
+    for (const cwd of allCwds) {
+      byCwd.set(cwd, buildSessionTree(allSessions.filter((s) => s.cwd === cwd)));
+    }
+    return byCwd;
+  }, [allSessions, allCwds]);
+  const sessionCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const s of allSessions) {
+      if (!s.cwd) continue;
+      counts[s.cwd] = (counts[s.cwd] ?? 0) + 1;
+    }
+    return counts;
+  }, [allSessions]);
 
-  // Build parent-child tree within the filtered set
-  const sessionTree = buildSessionTree(filteredSessions);
+  // Custom path… - open an arbitrary folder as the active project
+  const handleCustomPath = useCallback(async () => {
+    setOpeningProject(true);
+    setCwdPickerError(null);
+    try {
+      const selectedPath = await pickDirectoryFromHost();
+      const { nextCwd } = resolveCustomPathSelection(selectedCwd, selectedPath);
+      if (nextCwd && nextCwd !== selectedCwd) {
+        onCwdChange?.(nextCwd);
+      }
+    } catch (e) {
+      setCwdPickerError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setOpeningProject(false);
+    }
+  }, [selectedCwd, onCwdChange]);
+
+  // Use default directory
+  const handleDefaultCwd = useCallback(async () => {
+    try {
+      const res = await fetch("/api/default-cwd", { method: "POST" });
+      const data = (await res.json()) as { cwd?: string; error?: string };
+      if (data.cwd) {
+        setCwdPickerError(null);
+        if (data.cwd !== selectedCwd) {
+          onCwdChange?.(data.cwd);
+        }
+      }
+    } catch {
+      // ignore
+    }
+  }, [selectedCwd, onCwdChange]);
+
+  const renderProjectSessions = useCallback(
+    (cwd: string) => {
+      const tree = sessionTreeByCwd.get(cwd);
+      if (!tree || tree.length === 0) {
+        return (
+          <div style={{ padding: "6px 14px 8px 26px", color: "var(--text-dim)", fontSize: 11 }}>
+            No sessions yet
+          </div>
+        );
+      }
+      return (
+        <div style={{ paddingLeft: 12 }}>
+          {tree.map((node) => (
+            <SessionTreeItem
+              key={node.session.id}
+              node={node}
+              selectedSessionId={selectedSessionId}
+              onSelectSession={onSelectSession}
+              onRenamed={loadSessions}
+              onSessionDeleted={(id) => {
+                onSessionDeleted?.(id);
+                loadSessions();
+              }}
+              onBranchSession={onBranchSession}
+              onCloneSession={onCloneSession}
+              onExportSession={onExportSession}
+              depth={0}
+            />
+          ))}
+        </div>
+      );
+    },
+    [sessionTreeByCwd, selectedSessionId, onSelectSession, loadSessions, onSessionDeleted, onBranchSession, onCloneSession, onExportSession]
+  );
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
       {/* Header */}
       <SidebarHeader
         selectedCwd={selectedCwd}
-        onCwdChange={onCwdChange}
         onNewSession={onNewSession}
-        allSessions={allSessions}
         loadSessions={loadSessions}
         sessionRefreshDone={sessionRefreshDone}
-        initialSessionId={initialSessionId}
-        restoredRef={restoredRef}
       />
 
-      {/* Session list */}
+      {/* Project -> sessions tree */}
       <div
         style={{
           flex: explorerOpen && (selectedCwdProp || selectedCwd) ? "1 1 0" : "1 1 auto",
           overflowY: "auto",
-          padding: "0",
+          padding: "4px 0",
           minHeight: 80,
         }}
       >
@@ -156,28 +236,49 @@ export function SessionSidebar({
             {error}
           </div>
         )}
-        {!loading && !error && filteredSessions.length === 0 && (
+        {!loading && !error && allCwds.length === 0 && (
           <div style={{ padding: "16px 14px", color: "var(--text-muted)", fontSize: 12 }}>
-            No sessions found
+            No projects yet - open a folder below to get started.
           </div>
         )}
-        {sessionTree.map((node) => (
-          <SessionTreeItem
-            key={node.session.id}
-            node={node}
-            selectedSessionId={selectedSessionId}
-            onSelectSession={onSelectSession}
-            onRenamed={loadSessions}
-            onSessionDeleted={(id) => {
-              onSessionDeleted?.(id);
-              loadSessions();
-            }}
-            onBranchSession={onBranchSession}
-            onCloneSession={onCloneSession}
-            onExportSession={onExportSession}
-            depth={0}
-          />
-        ))}
+        <ProjectTree
+          cwds={allCwds}
+          selectedCwd={selectedCwd}
+          onSelect={(cwd) => {
+            if (cwd !== selectedCwd) onCwdChange?.(cwd);
+          }}
+          renderProject={renderProjectSessions}
+          sessionCounts={sessionCounts}
+        />
+
+        {/* List footer actions (restored from the old project dropdown) */}
+        <div className="mt-1 border-t border-divider">
+          <button
+            onClick={() => void handleDefaultCwd()}
+            className="flex items-center gap-[7px] w-full px-2.5 py-1.5 bg-transparent border-none text-text-muted hover:bg-bg-hover cursor-pointer text-left text-[11px]"
+          >
+            <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
+              <path d="M1 3A1 1 0 0 1 2 2H4L5 3.5H8.5a.5.5 0 0 1 .5.5v4a.5.5 0 0 1-.5.5h-7A.5.5 0 0 1 1 8V3Z" />
+            </svg>
+            <span>Use default directory</span>
+          </button>
+          <button
+            onClick={() => void handleCustomPath()}
+            disabled={openingProject}
+            className="flex items-center gap-[7px] w-full px-2.5 py-1.5 bg-transparent border-none text-text-muted hover:bg-bg-hover cursor-pointer text-left text-[11px]"
+          >
+            <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" className="shrink-0">
+              <line x1="5" y1="1" x2="5" y2="9" />
+              <line x1="1" y1="5" x2="9" y2="5" />
+            </svg>
+            <span>{openingProject ? "Opening folder picker..." : "Custom path…"}</span>
+          </button>
+          {cwdPickerError && (
+            <div className="px-2.5 pb-1.5 text-[11px]" style={{ color: "var(--danger)" }}>
+              {cwdPickerError}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* File Explorer section */}
