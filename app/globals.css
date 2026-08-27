@@ -246,11 +246,13 @@ html, body {
   overscroll-behavior: none;
 }
 
-button,
-input,
-textarea,
-select {
-  font: inherit;
+@layer base {
+  button,
+  input,
+  textarea,
+  select {
+    font: inherit;
+  }
 }
 
 button {

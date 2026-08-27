@@ -311,7 +311,7 @@ export function ChatWindow({ session, newSessionCwd, onAgentEnd, onSessionCreate
           <div className="flex w-full max-w-[1024px] flex-col justify-center">
             <div className="mb-8 flex justify-center select-none">
               <Image
-                src="/logo.png"
+                src="/logo-mark.svg"
                 alt=""
                 aria-hidden="true"
                 width={64}

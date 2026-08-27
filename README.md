@@ -1,6 +1,6 @@
 <div align="center">
   <a href="https://github.com/Chasen-Liao/pi-agent-desktop">
-    <img src="public/logo.png" alt="Pi Agent Desktop application icon" width="128" height="128" />
+    <img src="public/logo-mark.svg" alt="Pi Agent Desktop application icon" width="128" height="128" />
   </a>
 
   # Pi Agent Desktop
