@@ -1,11 +1,13 @@
 import type { IpcRendererEvent } from "electron";
-import { contextBridge, ipcRenderer } from "electron";
+import { contextBridge, ipcRenderer, webUtils } from "electron";
 
 contextBridge.exposeInMainWorld("electronAPI", {
   // "darwin" | "win32" | "linux" - lets the renderer adapt platform-specific
   // chrome such as the macOS traffic lights vs. Windows window controls.
   platform: process.platform,
   selectDirectory: () => ipcRenderer.invoke("select-directory"),
+  /** Resolve a drag-dropped File to its absolute filesystem path (Electron only). */
+  getPathForFile: (file: File) => webUtils.getPathForFile(file),
   onUpdateAvailable: (callback: (info: { version: string }) => void) => {
     const listener = (_event: IpcRendererEvent, info: { version: string }) => callback(info);
     ipcRenderer.on("update-available", listener);

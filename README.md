@@ -11,6 +11,7 @@
 
   [![Release](https://img.shields.io/github/v/release/Chasen-Liao/pi-agent-desktop?color=orange&logo=github)](https://github.com/Chasen-Liao/pi-agent-desktop/releases)
   [![License](https://img.shields.io/github/license/Chasen-Liao/pi-agent-desktop?color=blue)](LICENSE)
+  [![Landing](https://img.shields.io/badge/Landing-GitHub%20Pages-111111?logo=githubpages)](https://chasen-liao.github.io/pi-agent-desktop/)
 
   ---
 
@@ -69,6 +70,12 @@ npx tsc --noEmit
 # 代码检查
 npm run lint
 
+# 单测（含 middleware.test.ts；不要去掉 --test-force-exit）
+npm test
+
+# Windows CI 子集（路径 / Electron）
+npm run test:windows
+
 # 构建安装包
 npm run dist
 ```
@@ -118,10 +125,10 @@ MIT License
 
 ## Star History
 
-<a href="https://www.star-history.com/?type=date&repos=Chasen-Liao%2Fpi-agent-desktop">
+<a href="https://www.star-history.com/?repos=Chasen-Liao%2Fpi-agent-desktop&type=date&legend=top-left">
  <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=Chasen-Liao/pi-agent-desktop&type=date&theme=dark&legend=top-left&sealed_token=7FZx9tIJY7DZftKRGAxh3hKUgI5IKOodcow7xCxr-XsdPrEV8gzbLinwEWaMH09RIWG-Xk-XyrFLLLE1_dXvCiK94KE18IK3OOpDUrN0NN8IH1kVvdUhWQ" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=Chasen-Liao/pi-agent-desktop&type=date&legend=top-left&sealed_token=7FZx9tIJY7DZftKRGAxh3hKUgI5IKOodcow7xCxr-XsdPrEV8gzbLinwEWaMH09RIWG-Xk-XyrFLLLE1_dXvCiK94KE18IK3OOpDUrN0NN8IH1kVvdUhWQ" />
-   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=Chasen-Liao/pi-agent-desktop&type=date&legend=top-left&sealed_token=7FZx9tIJY7DZftKRGAxh3hKUgI5IKOodcow7xCxr-XsdPrEV8gzbLinwEWaMH09RIWG-Xk-XyrFLLLE1_dXvCiK94KE18IK3OOpDUrN0NN8IH1kVvdUhWQ" />
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=Chasen-Liao/pi-agent-desktop&type=date&theme=dark&legend=top-left&sealed_token=aFn-TCmARmvfk1wIdKSpOk7h46vafl3D-moDORISvD96gQ2y3nR3DvatGktptaV93Dz0ULxRvLxCT5yJ3_FzrPGXVjg7f-tJTmKpafiODarLHzonGBnXQw" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=Chasen-Liao/pi-agent-desktop&type=date&legend=top-left&sealed_token=aFn-TCmARmvfk1wIdKSpOk7h46vafl3D-moDORISvD96gQ2y3nR3DvatGktptaV93Dz0ULxRvLxCT5yJ3_FzrPGXVjg7f-tJTmKpafiODarLHzonGBnXQw" />
+   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=Chasen-Liao/pi-agent-desktop&type=date&legend=top-left&sealed_token=aFn-TCmARmvfk1wIdKSpOk7h46vafl3D-moDORISvD96gQ2y3nR3DvatGktptaV93Dz0ULxRvLxCT5yJ3_FzrPGXVjg7f-tJTmKpafiODarLHzonGBnXQw" />
  </picture>
 </a>
