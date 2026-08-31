@@ -37,7 +37,7 @@ export function SidebarHeader({
             onClick={handleNewSession}
             disabled={!selectedCwd}
             aria-label={t("sidebar.newSession")}
-            className={`sidebar-new-session-button flex h-7 shrink-0 items-center justify-center gap-1 rounded-control border px-2 text-[11px] font-medium tracking-normal transition-[background-color,border-color,color,opacity,transform] duration-150 ${
+            className={`sidebar-new-session-button flex h-7 w-7 shrink-0 items-center justify-center rounded-control border p-0 transition-[background-color,border-color,color,opacity,transform] duration-150 ${
               selectedCwd
                 ? "bg-chrome-button-bg border-border text-text-muted cursor-pointer hover:bg-chrome-button-hover hover:text-accent hover:border-focus-ring active:scale-95"
                 : "bg-chrome-button-bg border-border text-text-dim cursor-not-allowed"
@@ -48,7 +48,6 @@ export function SidebarHeader({
               <line x1="6" y1="1" x2="6" y2="11" />
               <line x1="1" y1="6" x2="11" y2="6" />
             </svg>
-            {t("common.new")}
           </button>
           <button
             onClick={() => loadSessions(false)}
