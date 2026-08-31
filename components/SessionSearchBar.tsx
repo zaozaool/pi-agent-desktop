@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { useI18n } from "./I18nProvider";
 
 interface SessionSearchBarProps {
   query: string;
@@ -26,6 +27,7 @@ export function SessionSearchBar({
   onClose,
 }: SessionSearchBarProps) {
   const inputRef = useRef<HTMLInputElement>(null);
+  const { t } = useI18n();
 
   useEffect(() => {
     inputRef.current?.focus();
@@ -66,8 +68,8 @@ export function SessionSearchBar({
             onClose();
           }
         }}
-        placeholder="搜索当前会话…"
-        aria-label="搜索当前会话"
+        placeholder={t("search.placeholder")}
+        aria-label={t("search.label")}
         spellCheck={false}
         className="h-7 w-52 border-none bg-transparent px-1.5 text-[12px] text-text outline-none placeholder:text-text-dim"
       />
@@ -80,8 +82,8 @@ export function SessionSearchBar({
         <button
           onClick={onPrev}
           disabled={matchCount === 0}
-          aria-label="上一个匹配"
-          title="上一个匹配 (Shift+Enter)"
+          aria-label={t("search.previousMatch")}
+          title={t("search.previousMatchHint")}
           className={`flex h-6 w-6 items-center justify-center rounded-[4px] border-none p-0 ${
             matchCount > 0
               ? "bg-transparent text-text-muted hover:bg-bg-hover hover:text-text cursor-pointer"
@@ -95,8 +97,8 @@ export function SessionSearchBar({
         <button
           onClick={onNext}
           disabled={matchCount === 0}
-          aria-label="下一个匹配"
-          title="下一个匹配 (Enter)"
+          aria-label={t("search.nextMatch")}
+          title={t("search.nextMatchHint")}
           className={`flex h-6 w-6 items-center justify-center rounded-[4px] border-none p-0 ${
             matchCount > 0
               ? "bg-transparent text-text-muted hover:bg-bg-hover hover:text-text cursor-pointer"
@@ -109,8 +111,8 @@ export function SessionSearchBar({
         </button>
         <button
           onClick={onClose}
-          aria-label="关闭搜索"
-          title="关闭 (Esc)"
+          aria-label={t("search.close")}
+          title={t("search.closeHint")}
           className="flex h-6 w-6 items-center justify-center rounded-[4px] border-none bg-transparent p-0 text-text-muted hover:bg-bg-hover hover:text-text cursor-pointer"
         >
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">

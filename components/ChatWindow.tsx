@@ -484,8 +484,8 @@ export function ChatWindow({ session, newSessionCwd, onAgentEnd, onSessionCreate
           <button
             type="button"
             onClick={handleScrollToBottom}
-            aria-label="滚动到底部"
-            title="滚动到底部"
+            aria-label={t("chat.scrollToBottom")}
+            title={t("chat.scrollToBottom")}
             className="chat-scroll-bottom-btn absolute bottom-full left-1/2 z-40 mb-2 -translate-x-1/2 grid h-8 w-8 place-items-center rounded-full border border-border bg-bg-elevated text-text-muted shadow-popover transition-[background-color,color,transform] duration-150 hover:bg-bg-hover hover:text-text active:scale-90"
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

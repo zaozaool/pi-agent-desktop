@@ -2,6 +2,7 @@
 
 import React from "react";
 import { openDirectoryInFileManager, pathBasename } from "./helpers";
+import { useI18n } from "../I18nProvider";
 
 interface ProjectTreeProps {
   /** All project directories, most recently active first */
@@ -20,6 +21,7 @@ interface ProjectTreeProps {
 
 export function ProjectTree({ cwds, selectedCwd, onSelect, renderProject, sessionCounts, expanded, onExpandedChange }: ProjectTreeProps) {
   const [openError, setOpenError] = React.useState<string | null>(null);
+  const { t } = useI18n();
 
   const toggle = (cwd: string) => {
     const next = new Set(expanded);
@@ -88,8 +90,8 @@ export function ProjectTree({ cwds, selectedCwd, onSelect, renderProject, sessio
                     setOpenError(err instanceof Error ? err.message : String(err));
                   });
                 }}
-                aria-label="Open in file manager"
-                title={`Open ${cwd} in file manager`}
+                aria-label={t("project.openInFileManager")}
+                title={t("project.openInFileManagerIn", { path: cwd })}
                 className="flex items-center justify-center w-[18px] h-[18px] p-0 shrink-0 bg-transparent border-none rounded-[3px] text-text-dim hover:text-text hover:bg-chrome-button-hover cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity duration-150"
               >
                 <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

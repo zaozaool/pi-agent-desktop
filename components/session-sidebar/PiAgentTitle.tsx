@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef } from "react";
+import { useI18n } from "../I18nProvider";
 
 const SCRAMBLE_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*";
 
@@ -50,6 +51,7 @@ function useScramble(target: string, running: boolean): string {
 export function PiAgentTitle() {
   const [showVersion, setShowVersion] = useState(true);
   const [scrambling, setScrambling] = useState(false);
+  const { t } = useI18n();
   const revertTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const target = showVersion ? `v${process.env.NEXT_PUBLIC_PI_VERSION ?? "0.0.0"}` : "";
@@ -78,7 +80,7 @@ export function PiAgentTitle() {
   return (
     <button
       onClick={handleClick}
-      title="Pi Agent Desktop - click to show version"
+      title={t("sidebar.appTitle")}
       className="pi-agent-title flex items-center gap-2 bg-transparent border-none p-0 cursor-pointer group"
     >
       {/* Logo mark - currentColor so it follows the theme text color */}

@@ -272,20 +272,20 @@ export function SessionSidebar({
         )}
         {!loading && !error && allCwds.length === 0 && (
           <div style={{ padding: "16px 14px", color: "var(--text-muted)", fontSize: 12 }}>
-            No projects yet - open a folder below to get started.
+            {t("sidebar.noProjects")}
           </div>
         )}
         {/* Projects section header + collapse/expand all + sort toggle */}
         {allCwds.length > 0 && (
           <div className="flex items-center justify-between px-2.5 pt-1.5 pb-0.5">
             <span className="text-[10px] font-semibold tracking-[0.04em] uppercase text-text-dim select-none">
-              Projects
+              {t("sidebar.projects")}
             </span>
             <div className="flex items-center gap-[2px]">
               <button
                 onClick={toggleAllProjects}
-                aria-label={anyProjectExpanded ? "Collapse all projects" : "Expand all projects"}
-                title={anyProjectExpanded ? "Collapse all projects" : "Expand all projects"}
+                aria-label={anyProjectExpanded ? t("sidebar.collapseAllProjects") : t("sidebar.expandAllProjects")}
+                title={anyProjectExpanded ? t("sidebar.collapseAllProjects") : t("sidebar.expandAllProjects")}
                 className="flex items-center gap-1 h-[20px] px-1.5 bg-transparent border-none rounded-[3px] text-text-dim hover:text-text hover:bg-bg-hover cursor-pointer transition-colors duration-150"
               >
                 {anyProjectExpanded ? (
@@ -300,16 +300,16 @@ export function SessionSidebar({
                   </svg>
                 )}
                 <span className="text-[10px] font-medium">
-                  {anyProjectExpanded ? "Collapse" : "Expand"}
+                  {anyProjectExpanded ? t("sidebar.collapse") : t("sidebar.expand")}
                 </span>
               </button>
               <button
                 onClick={() => setProjectSort((m) => (m === "recent" ? "alpha" : "recent"))}
-                aria-label={projectSort === "recent" ? "Sort by recent activity" : "Sort alphabetically"}
+                aria-label={projectSort === "recent" ? t("sidebar.sortByRecent") : t("sidebar.sortAlphabetically")}
                 title={
                   projectSort === "recent"
-                    ? "Sorted by recent activity — click to sort alphabetically"
-                    : "Sorted alphabetically — click to sort by recent activity"
+                    ? t("sidebar.sortedByRecent")
+                    : t("sidebar.sortedAlphabetically")
                 }
                 className="flex items-center gap-1 h-[20px] px-1.5 bg-transparent border-none rounded-[3px] text-text-dim hover:text-text hover:bg-bg-hover cursor-pointer transition-colors duration-150"
               >
@@ -327,7 +327,7 @@ export function SessionSidebar({
                   </svg>
                 )}
                 <span className="text-[10px] font-medium">
-                  {projectSort === "recent" ? "Recent" : "A–Z"}
+                  {projectSort === "recent" ? t("sidebar.recentSort") : t("sidebar.alphaSort")}
                 </span>
               </button>
             </div>
@@ -354,7 +354,7 @@ export function SessionSidebar({
             <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
               <path d="M1 3A1 1 0 0 1 2 2H4L5 3.5H8.5a.5.5 0 0 1 .5.5v4a.5.5 0 0 1-.5.5h-7A.5.5 0 0 1 1 8V3Z" />
             </svg>
-            <span>Use default directory</span>
+            <span>{t("sidebar.defaultDirectory")}</span>
           </button>
           <button
             onClick={() => void handleCustomPath()}
@@ -365,7 +365,7 @@ export function SessionSidebar({
               <line x1="5" y1="1" x2="5" y2="9" />
               <line x1="1" y1="5" x2="9" y2="5" />
             </svg>
-            <span>{openingProject ? "Opening folder picker..." : "Custom path…"}</span>
+            <span>{openingProject ? t("sidebar.openingFolderPicker") : t("sidebar.customPath")}</span>
           </button>
           {cwdPickerError && (
             <div className="px-2.5 pb-1.5 text-[11px]" style={{ color: "var(--danger)" }}>

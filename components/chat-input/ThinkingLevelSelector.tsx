@@ -1,20 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useI18n } from "../I18nProvider";
 
 const THINKING_LEVELS = ["auto", "off", "minimal", "low", "medium", "high", "xhigh"] as const;
 
 export type ThinkingLevel = (typeof THINKING_LEVELS)[number];
-
-const THINKING_LEVEL_DESC: Record<ThinkingLevel, string> = {
-  auto: "沿用 pi 默认设置",
-  off: "关闭推理",
-  minimal: "最少推理",
-  low: "低强度推理",
-  medium: "中等推理",
-  high: "高强度推理",
-  xhigh: "最高强度推理",
-};
 
 interface ThinkingLevelSelectorProps {
   isStreaming: boolean;
@@ -33,6 +24,7 @@ export function ThinkingLevelSelector({
 }: ThinkingLevelSelectorProps) {
   const [open, setOpen] = useState(false);
   const [panelRect, setPanelRect] = useState<{ top: number; right: number } | null>(null);
+  const { t } = useI18n();
 
   const triggerRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -80,8 +72,8 @@ export function ThinkingLevelSelector({
           setOpen((v) => !v);
         }}
         disabled={isStreaming}
-        title="切换推理强度"
-        aria-label={`Change thinking level. Current level: ${currentLabel}`}
+        title={t("chat.thinkingLevel")}
+        aria-label={t("chat.thinkingLevelAria", { level: currentLabel })}
         style={{
           display: "flex", alignItems: "center", gap: 6,
           padding: "8px 12px",
@@ -132,7 +124,7 @@ export function ThinkingLevelSelector({
           >
             {levels.map((lvl) => {
               const isActive = current === lvl;
-              const desc = THINKING_LEVEL_DESC[lvl];
+              const desc = t(`thinking.${lvl}.desc`);
               const mappedVal = lvl !== "auto" && thinkingLevelMap ? thinkingLevelMap[lvl] : undefined;
               const displayLabel = mappedVal != null ? mappedVal : lvl;
               const showOriginal = mappedVal != null && mappedVal !== lvl;
