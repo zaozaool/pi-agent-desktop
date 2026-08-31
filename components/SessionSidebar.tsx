@@ -212,13 +212,13 @@ export function SessionSidebar({
       const tree = sessionTreeByCwd.get(cwd);
       if (!tree || tree.length === 0) {
         return (
-          <div style={{ padding: "6px 14px 8px 26px", color: "var(--text-dim)", fontSize: 11 }}>
+          <div style={{ padding: "6px 14px 8px 30px", color: "var(--text-dim)", fontSize: 11 }}>
             {t("sidebar.noSessionsYet")}
           </div>
         );
       }
       return (
-        <div style={{ paddingLeft: 12 }}>
+        <div style={{ paddingLeft: 16 }}>
           {tree.map((node) => (
             <SessionTreeItem
               key={node.session.id}
@@ -282,13 +282,28 @@ export function SessionSidebar({
         )}
         {/* Projects section header + collapse/expand section + collapse/expand all + sort toggle */}
         {allCwds.length > 0 && (
-          <div className="flex items-center justify-between px-2.5 pt-1.5 pb-0.5">
+          <div className="flex items-center flex-shrink-0">
             <button
               onClick={() => setProjectsOpen((v) => !v)}
               aria-expanded={projectsOpen}
               aria-label={projectsOpen ? t("sidebar.collapseProjects") : t("sidebar.expandProjects")}
               title={projectsOpen ? t("sidebar.collapseProjects") : t("sidebar.expandProjects")}
-              className="flex items-center gap-1 bg-transparent border-none p-0 text-[10px] font-semibold tracking-[0.04em] uppercase text-text-dim cursor-pointer hover:text-text-muted select-none"
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+                flex: 1,
+                padding: "6px 10px",
+                background: "none",
+                border: "none",
+                color: "var(--text-muted)",
+                cursor: "pointer",
+                fontSize: 11,
+                fontWeight: 600,
+                letterSpacing: "0.04em",
+                textTransform: "uppercase",
+                textAlign: "left",
+              }}
             >
               <svg
                 width="9"
@@ -309,7 +324,7 @@ export function SessionSidebar({
               </svg>
               {t("sidebar.projects")}
             </button>
-            <div className="flex items-center gap-[2px]">
+            <div className="flex items-center gap-[2px] mr-1.5">
               <button
                 onClick={toggleAllProjects}
                 aria-label={anyProjectExpanded ? t("sidebar.collapseAllProjects") : t("sidebar.expandAllProjects")}

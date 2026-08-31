@@ -45,7 +45,7 @@ export function ProjectTree({ cwds, selectedCwd, onSelect, renderProject, sessio
               className={`group flex items-center gap-[5px] w-full pr-2.5 border-none text-left text-[11px] font-mono cursor-pointer ${
                 isSelected ? "bg-bg-selected text-text" : "bg-transparent text-text-muted hover:bg-bg-hover"
               }`}
-              style={{ paddingLeft: 8 }}
+              style={{ paddingLeft: 12 }}
               title={cwd}
               onClick={() => {
                 onSelect(cwd);
@@ -103,7 +103,7 @@ export function ProjectTree({ cwds, selectedCwd, onSelect, renderProject, sessio
             </div>
 
             {isSelected && openError && (
-              <div className="px-2.5 pb-1.5 text-[11px]" style={{ color: "var(--danger)", marginLeft: 8 }}>
+              <div className="px-2.5 pb-1.5 text-[11px]" style={{ color: "var(--danger)", marginLeft: 12 }}>
                 {openError}
               </div>
             )}
