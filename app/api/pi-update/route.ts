@@ -1,43 +1,144 @@
 import { spawn } from "child_process";
-import { existsSync } from "fs";
-import { join } from "path";
+import { readdirSync, statSync } from "fs";
+import { delimiter, join, relative, resolve } from "path";
 import { NextResponse } from "next/server";
 import { getRequestId, logApiError } from "@/lib/api-error";
 
-/**
- * Locates the pi CLI entry script.
- *
- * `require.resolve` is not an option: the package's `exports` map does not
- * expose the bin file. Instead we probe known layouts:
- *   - PI_BIN env override (explicit, always wins)
- *   - <cwd>/node_modules/@earendil-works/pi-coding-agent/dist/bundle/cli.js
- *     (dev server runs from the project root; the standalone server runs
- *     from .next/standalone which carries its own node_modules)
- *   - plain "pi" from PATH (last resort)
- */
-function resolvePiCommand(): { command: string; baseArgs: string[] } {
-  if (process.env.PI_BIN) {
-    return { command: process.execPath, baseArgs: [process.env.PI_BIN] };
+function isFile(p: string): boolean {
+  try {
+    return statSync(p).isFile();
+  } catch {
+    return false;
   }
-  const candidates = [
-    join(
-      process.cwd(),
-      "node_modules",
-      "@earendil-works",
-      "pi-coding-agent",
-      "dist",
-      "bundle",
-      "cli.js"
-    ),
-  ];
-  for (const p of candidates) {
-    try {
-      if (existsSync(p)) return { command: process.execPath, baseArgs: [p] };
-    } catch {
-      // ignore
+}
+
+/** True when `dir` lies inside `root` (used to skip the app's own node_modules/.bin shim). */
+function isInsidePath(root: string, dir: string): boolean {
+  const rel = relative(resolve(root), resolve(dir));
+  return rel !== "" && !rel.startsWith("..");
+}
+
+/**
+ * Finds the user's *global* pi on PATH, skipping entries inside `skipRoot`.
+ *
+ * The dev server prepends `<project>/node_modules/.bin` to PATH, so a bare
+ * `pi` lookup would hit the bundled copy - which `pi update` refuses to
+ * self-update (it is not a global npm install).
+ */
+function findGlobalPiOnPath(skipRoot: string): string | null {
+  const pathDirs = (process.env.PATH ?? "").split(delimiter).filter(Boolean);
+  const exts = process.platform === "win32" ? [".cmd", ".exe", ""] : [""];
+  for (const dir of pathDirs) {
+    if (!dir) continue;
+    if (isInsidePath(skipRoot, dir)) continue;
+    for (const ext of exts) {
+      const candidate = join(dir, `pi${ext}`);
+      if (isFile(candidate)) return candidate;
     }
   }
-  return { command: "pi", baseArgs: [] };
+  return null;
+}
+
+/**
+ * Fallback for GUI launches where PATH is minimal (no nvm / user bins):
+ * scan ~/.nvm/versions/node/<v>/bin/pi and pick the highest version.
+ */
+function findNvmPi(): string | null {
+  if (process.platform === "win32") return null;
+  const home = process.env.HOME;
+  if (!home) return null;
+  const versionsDir = join(home, ".nvm", "versions", "node");
+  let best: { version: number[]; path: string } | null = null;
+  try {
+    for (const name of readdirSync(versionsDir)) {
+      const m = /^v(\d+)\.(\d+)\.(\d+)$/.exec(name);
+      const candidate = join(versionsDir, name, "bin", "pi");
+      if (!m || !isFile(candidate)) continue;
+      const version = m.slice(1).map(Number);
+      if (!best || compareVersions(version, best.version) > 0) {
+        best = { version, path: candidate };
+      }
+    }
+  } catch {
+    // no nvm installation
+  }
+  return best?.path ?? null;
+}
+
+function compareVersions(a: number[], b: number[]): number {
+  for (let i = 0; i < Math.max(a.length, b.length); i++) {
+    const d = (a[i] ?? 0) - (b[i] ?? 0);
+    if (d !== 0) return d;
+  }
+  return 0;
+}
+
+interface ResolvedCommand {
+  command: string;
+  args: string[];
+  /** Human-readable note streamed to the client before pi's output (null = none). */
+  note: string | null;
+}
+
+/**
+ * Locates the pi CLI to invoke for `pi update`.
+ *
+ * Order:
+ *   1. PI_BIN env override (explicit, always wins)
+ *   2. Global `pi` on PATH, skipping the app's own node_modules/.bin shim
+ *      (dev servers prepend it to PATH; the bundled copy is not a global
+ *      npm install and cannot self-update)
+ *   3. nvm-managed global pi (~/.nvm/versions/node/<v>/bin/pi) - GUI
+ *      launches inherit a minimal PATH without nvm
+ *   4. Bundled copy (<cwd>/node_modules/...) as last resort, with a note
+ *      explaining it cannot self-update
+ */
+function resolvePiUpdateCommand(): ResolvedCommand {
+  const updateArgs = ["update", "--all"];
+
+  if (process.env.PI_BIN) {
+    return { command: process.execPath, args: [process.env.PI_BIN, ...updateArgs], note: null };
+  }
+
+  const globalPi = findGlobalPiOnPath(process.cwd()) ?? findNvmPi();
+  if (globalPi) {
+    if (process.platform === "win32" && /\.(cmd|exe)$/i.test(globalPi)) {
+      // .cmd shims cannot be spawned without a shell (Node >= 20 EINVAL);
+      // args are static constants so quoting is safe here.
+      const comspec = process.env.ComSpec ?? "cmd.exe";
+      return {
+        command: comspec,
+        args: ["/d", "/s", "/c", `"${globalPi}" ${updateArgs.join(" ")}`],
+        note: `[pi-update] using ${globalPi}\n`,
+      };
+    }
+    return { command: globalPi, args: updateArgs, note: `[pi-update] using ${globalPi}\n` };
+  }
+
+  const bundled = join(
+    process.cwd(),
+    "node_modules",
+    "@earendil-works",
+    "pi-coding-agent",
+    "dist",
+    "bundle",
+    "cli.js"
+  );
+  if (isFile(bundled)) {
+    return {
+      command: process.execPath,
+      args: [bundled, ...updateArgs],
+      note:
+        "[pi-update] no global pi found on PATH; falling back to the bundled copy, " +
+        "which cannot self-update. Install pi globally (e.g. `npm i -g @earendil-works/pi-coding-agent`) and retry.\n",
+    };
+  }
+
+  return {
+    command: "pi",
+    args: updateArgs,
+    note: "[pi-update] no global pi found on PATH; trying bare `pi`.\n",
+  };
 }
 
 /**
@@ -45,16 +146,16 @@ function resolvePiCommand(): { command: string; baseArgs: string[] } {
  *
  * Runs `pi update --all` (updates pi + installed extensions) and streams the
  * combined stdout/stderr back as chunked plain text so the UI can show live
- * progress. The final line is a JSON status marker: {"__piUpdateDone":true,...}.
+ * progress. The final line is a JSON status marker with __piUpdateDone.
  */
 export async function POST(req: Request) {
   const requestId = getRequestId(req);
 
-  const { command, baseArgs } = resolvePiCommand();
+  const { command, args, note } = resolvePiUpdateCommand();
   const UPDATE_TIMEOUT_MS = 10 * 60 * 1000;
 
   try {
-    const child = spawn(command, [...baseArgs, "update", "--all"], {
+    const child = spawn(command, args, {
       cwd: process.cwd(),
       env: { ...process.env },
       windowsHide: true,
@@ -76,6 +177,8 @@ export async function POST(req: Request) {
             // controller closed - ignore
           }
         };
+
+        if (note) push(note);
 
         child.stdout?.on("data", push);
         child.stderr?.on("data", push);
