@@ -18,6 +18,8 @@ import { useAudio } from "@/hooks/useAudio";
 import { AgentThinkingOrb } from "./AgentThinkingOrb";
 import { useDragDrop } from "@/hooks/useDragDrop";
 import { formatDroppedPathMentions, getDroppedFilePath } from "@/lib/file-paths";
+import { SessionSearchBar } from "./SessionSearchBar";
+import { findSessionMatches } from "@/lib/session-search";
 interface Props {
   session: SessionInfo | null;
   newSessionCwd: string | null;
@@ -134,6 +136,87 @@ export function ChatWindow({ session, newSessionCwd, onAgentEnd, onSessionCreate
 
   const visibleMessages = messages.filter((m) => m.role === "user" || m.role === "assistant");
   const messageRefs = useMessageRefs(visibleMessages.length);
+
+  // ── In-session search (Cmd/Ctrl+F) ────────────────────────────────────────
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchMatchIdx, setSearchMatchIdx] = useState(0);
+
+  const searchMatches = useMemo(
+    () => findSessionMatches(messages, entryIds, searchOpen ? searchQuery : ""),
+    [messages, entryIds, searchQuery, searchOpen]
+  );
+  const searchMatchesRef = useRef(searchMatches);
+  searchMatchesRef.current = searchMatches;
+
+  const currentSearchMatch =
+    searchOpen && searchQuery.trim() && searchMatches.length > 0
+      ? searchMatches[Math.min(searchMatchIdx, searchMatches.length - 1)]
+      : null;
+
+  const searchMatchEntryIds = useMemo(
+    () => new Set(searchMatches.map((m) => m.entryId).filter((id): id is string => Boolean(id))),
+    [searchMatches]
+  );
+
+  const scrollToMatch = useCallback(
+    (idx: number) => {
+      const matches = searchMatchesRef.current;
+      if (matches.length === 0) return;
+      const wrapped = ((idx % matches.length) + matches.length) % matches.length;
+      const m = matches[wrapped];
+      messageRefs.current[m.visibleIdx]?.scrollIntoView({ behavior: "smooth", block: "center" });
+    },
+    [messageRefs]
+  );
+
+  const gotoSearchMatch = useCallback(
+    (idx: number) => {
+      const matches = searchMatchesRef.current;
+      if (matches.length === 0) return;
+      const wrapped = ((idx % matches.length) + matches.length) % matches.length;
+      setSearchMatchIdx(wrapped);
+      scrollToMatch(wrapped);
+    },
+    [scrollToMatch]
+  );
+
+  const handleSearchQueryChange = useCallback((q: string) => {
+    setSearchQuery(q);
+    setSearchMatchIdx(0);
+  }, []);
+
+  const closeSearch = useCallback(() => {
+    setSearchOpen(false);
+    setSearchQuery("");
+    setSearchMatchIdx(0);
+  }, []);
+
+  // Reset search when switching sessions
+  useEffect(() => {
+    closeSearch();
+  }, [session?.id, closeSearch]);
+
+  // Cmd/Ctrl+F opens, Esc closes (capture-phase so it beats browser find)
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && (e.key === "f" || e.key === "F")) {
+        e.preventDefault();
+        setSearchOpen(true);
+      } else if (e.key === "Escape" && searchOpen) {
+        closeSearch();
+      }
+    };
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  }, [searchOpen, closeSearch]);
+
+  // Debounced: jump to the first match while typing
+  useEffect(() => {
+    if (!searchOpen || !searchQuery.trim()) return;
+    const t = setTimeout(() => scrollToMatch(0), 350);
+    return () => clearTimeout(t);
+  }, [searchQuery, searchOpen, scrollToMatch]);
 
   const toolResultsMap = useMemo(() => {
     const m = new Map<string, ToolResultMessage>();
@@ -318,6 +401,17 @@ export function ChatWindow({ session, newSessionCwd, onAgentEnd, onSessionCreate
         </div>
       )}
 
+      {searchOpen && (
+        <SessionSearchBar
+          query={searchQuery}
+          onQueryChange={handleSearchQueryChange}
+          matchCount={searchMatches.length}
+          matchPosition={currentSearchMatch ? Math.min(searchMatchIdx, searchMatches.length - 1) + 1 : 0}
+          onPrev={() => gotoSearchMatch(searchMatchIdx - 1)}
+          onNext={() => gotoSearchMatch(searchMatchIdx + 1)}
+          onClose={closeSearch}
+        />
+      )}
       {isEmptyNew ? (
         <div className="relative flex min-h-0 flex-1 flex-col items-center justify-center overflow-y-auto px-4 py-10 md:py-16">
           <div className="flex w-full max-w-[1024px] flex-col justify-center">
@@ -361,6 +455,8 @@ export function ChatWindow({ session, newSessionCwd, onAgentEnd, onSessionCreate
               messageRefs={messageRefs}
               lastUserMsgRef={lastUserMsgRef}
               modelNames={modelNames}
+              searchMatchEntryIds={searchMatchEntryIds}
+              searchCurrentEntryId={currentSearchMatch?.entryId ?? null}
               activeAgentIndicator={agentRunning
                 ? <AgentThinkingOrb phase={agentPhase} thinking={activeThinking} />
                 : null}

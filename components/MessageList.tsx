@@ -21,13 +21,17 @@ interface MessageListProps {
   lastUserMsgRef: React.MutableRefObject<HTMLDivElement | null>;
   modelNames: Record<string, string>;
   activeAgentIndicator?: React.ReactNode;
+  /** Entry ids of messages containing a search hit */
+  searchMatchEntryIds?: Set<string>;
+  /** Entry id of the currently focused search hit */
+  searchCurrentEntryId?: string | null;
 }
 
 export const MessageList = React.memo(function MessageList({
   messages, entryIds, toolResultsMap, nextUserIdx, nextAssistantIdx,
   isStreaming, streamingMessage, isNew, agentRunning, forkingEntryId,
   onFork, onNavigate, onBranchMessage, onEditContent, messageRefs, lastUserMsgRef,
-  modelNames, activeAgentIndicator,
+  modelNames, activeAgentIndicator, searchMatchEntryIds, searchCurrentEntryId,
 }: MessageListProps) {
   const lastUserIdx = useMemo(() => {
     for (let i = messages.length - 1; i >= 0; i--) {
@@ -75,6 +79,9 @@ export const MessageList = React.memo(function MessageList({
 
         if (!isUserOrAssistant) return view;
         const currentRefIdx = refIdx++;
+        const entryId = entryIds[idx];
+        const isSearchHit = searchMatchEntryIds?.has(entryId) ?? false;
+        const isSearchCurrent = searchCurrentEntryId != null && searchCurrentEntryId === entryId;
         return (
           <div
             key={entryIds[idx] ?? `idx-${idx}`}
@@ -83,6 +90,14 @@ export const MessageList = React.memo(function MessageList({
               if (idx === lastUserIdx) lastUserMsgRef.current = el;
             }}
             style={{ contentVisibility: "auto", containIntrinsicSize: "auto 150px" }}
+            className={`transition-shadow duration-200 ${
+              isSearchCurrent
+                ? "search-hit-current"
+                : isSearchHit
+                ? "search-hit"
+                : ""
+            }`
+          }
           >
             {view}
           </div>

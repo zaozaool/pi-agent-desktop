@@ -1003,6 +1003,17 @@ span.linenumber {
   from { opacity: 0; transform: translate(-50%, 4px) scale(0.9); }
   to { opacity: 1; transform: translate(-50%, 0) scale(1); }
 }
+
+/* In-session search hits (Cmd+F) */
+.search-hit {
+  border-radius: var(--radius-panel);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 22%, transparent);
+}
+.search-hit-current {
+  border-radius: var(--radius-panel);
+  box-shadow: inset 0 0 0 2px var(--accent);
+  background: color-mix(in srgb, var(--accent) 6%, transparent);
+}
 .w-titlebar {
   width: env(titlebar-area-width, 138px) !important;
 }
