@@ -33,10 +33,11 @@ npm run build
 # 打包目录版 Electron 应用
 npm run pack
 
-# 构建当前平台安装包（Windows NSIS / macOS DMG + ZIP）
+# 构建当前平台安装包（Windows NSIS / macOS DMG）
 npm run dist
 
-# 构建 Intel + Apple Silicon Universal macOS 安装包
+# 构建 macOS DMG（默认当前机器架构；MAC_ARCH=arm64/x64/universal 可覆盖，
+# 或直接用 npm run dist:mac:arm64 / dist:mac:x64 / dist:mac:universal）
 npm run dist:mac
 ```
 

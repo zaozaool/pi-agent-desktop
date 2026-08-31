@@ -791,20 +791,24 @@ outputFileTracingExcludes: {
 
 将所有 `*turbo*.runtime.prod.js` 从 `node_modules/next/.../next-server` 复制进 standalone。不要删掉该步骤。
 
-### 14.10c macOS Universal 必须补齐双架构原生运行时
+### 14.10c macOS 打包架构选择：MAC_ARCH 与原生运行时对齐
 
-Next.js NFT 只会追踪构建宿主架构的可选原生依赖。在 Apple Silicon 上生成的 `.next/standalone` 默认只有 `@img/sharp-darwin-arm64` 与对应 libvips；直接交给 electron-builder 合成 Universal 应用会有两个问题：
+macOS 打包通过 `MAC_ARCH` 环境变量选择目标架构：不设置（默认 `host`）打**当前机器架构**的单架构 DMG，可选 `arm64` / `x64` 交叉打包，或 `universal` 打双架构通用包。`mac.target` 只有 `dmg`，不再烘焙 `arch`。
 
-1. standalone 中 Pi TUI 等包已经按 `darwin-arm64` / `darwin-x64` 分目录携带原生文件，两份中间应用里的文件完全相同，`@electron/universal` 会把它误判为需要再次 `lipo` 的同路径 Mach-O 并中止。
-2. 即使只跳过合并，Intel 进程仍缺 `@img/sharp-darwin-x64` 与 x64 libvips，Next Image 在 x86_64 下无法加载 Sharp。
+Next.js NFT 只会追踪构建宿主架构的可选原生依赖。在 Apple Silicon 上生成的 `.next/standalone` 默认只有 `@img/sharp-darwin-arm64` 与对应 libvips。因此：
+
+1. **单架构（默认）**：standalone 里另一架构的原生包是死重（libvips 一个架构约 19MB），且 Pi TUI 的 `prebuilds/darwin-{arm64,x64}` 双目录与 Clipboard 的架构兜底包同样如此。
+2. **交叉打包 x64**：宿主 node_modules 里没有 x64 的 Sharp/libvips（npm 会在 Apple Silicon 上拒绝安装，EBADPLATFORM），必须用 `npm pack` 下载。
+3. **universal**：双架构原生包必须并存（Sharp 按 `process.arch` 选择包）；且两份中间应用里这些文件完全相同，`@electron/universal` 会误判为需要再次 `lipo` 的同路径 Mach-O 并中止。
 
 **修复链路**：
 
-- `scripts/ensure-standalone-macos-universal-runtimes.mjs` 从 standalone 的 `sharp/package.json` 读取精确可选依赖版本，把宿主已有包复制过去，并通过 `npm pack` 下载另一架构包，最终保证 arm64/x64 Sharp 与 libvips 并存。
-- `electron-builder.yml` 的 `mac.x64ArchFiles` 只匹配 Pi TUI、Clipboard、Sharp 与 libvips 的架构专用目录，让 Universal 合并器保留这些并列资源；Electron 主可执行文件等其他 Mach-O 仍正常执行 `lipo`。
+- `scripts/ensure-standalone-macos-runtimes.mjs` 从 standalone 的 `sharp/package.json` 读取精确可选依赖版本，按 MAC_ARCH 补齐目标架构的 Sharp 与 libvips（宿主已有则复制，缺失则 `npm pack` 下载）；单架构时**裁掉**另一架构的 Sharp/libvips、Pi TUI prebuilds 目录与 Clipboard 架构兜底包（universal 剪切板绑定双架构可用，无需处理）。
+- `scripts/electron-builder-mac.mjs` 把 MAC_ARCH 映射成 electron-builder 的 `--arm64` / `--x64` / `--universal`（`host` 不传，electron-builder 默认本机架构），其余参数原样透传。`dist:mac:arm64` / `dist:mac:x64` / `dist:mac:universal` 是对应糖脚本。
+- `electron-builder.yml` 的 `mac.x64ArchFiles` 只在 `MAC_ARCH=universal` 时被消费：让合并器把 Pi TUI、Clipboard、Sharp 与 libvips 的架构专用目录从 x64 中间应用直接复制而不 `lipo`；Electron 主可执行文件等其他 Mach-O 仍正常合并。
 - `@electron/rebuild` 由 electron-builder 自动调用，打包脚本不得再显式运行一遍，也不需要作为顶层 devDependency。
 
-验证不能只看构建退出码：最终主程序的 `lipo -archs` 应为 `x86_64 arm64`，并应分别用原生 arm64 与 Rosetta x64 进程加载 packaged standalone 中的 `sharp`。
+验证不能只看构建退出码：单架构包用 `lipo -archs` 确认只含目标架构；universal 包应为 `x86_64 arm64`，并应分别用原生 arm64 与 Rosetta x64 进程加载 packaged standalone 中的 `sharp`。注意：mac 自动更新（electron-updater/Squirrel.Mac）只支持 ZIP 产物，dmg-only 配置下 macOS 端只能提示新版本、需手动下载安装。
 
 ### 14.11 安全文件访问：allowed-roots 鉴权模型
 
@@ -886,7 +890,7 @@ Issue #20「对话进行当中突然白屏」的调研（[docs/research/issue-20
 | AI SDK | @earendil-works/pi-ai | ^0.84.3 |
 | 品牌图标 | @lobehub/icons | ^5.6.0 |
 | 桌面壳 | Electron | ^43.4.1 |
-| 打包 | electron-builder（Windows NSIS；macOS Universal DMG + ZIP） | ^26.15.3 |
+| 打包 | electron-builder（Windows NSIS；macOS DMG，按 MAC_ARCH 单架构或 Universal） | ^26.15.3 |
 | 自动更新 | electron-updater | ^6.8.9 |
 | Lint | ESLint（flat config） | ^9 |
 | 测试 | node:test | 内置 |

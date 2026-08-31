@@ -94,20 +94,19 @@ nsis:
   include: build/installer.nsh
 
 mac:
+  # No arch is baked in here: scripts/electron-builder-mac.mjs derives it from
+  # MAC_ARCH (host by default; arm64 / x64 / universal are also supported).
   target:
-    - target: dmg
-      arch:
-        - universal
-    - target: zip
-      arch:
-        - universal
+    - dmg
   icon: build/icon.icns
   category: public.app-category.developer-tools
   darkModeSupport: true
-  # Standalone contains architecture-specific native packages side-by-side.
-  # They are identical in both intermediate apps and must not be lipo'd by
-  # @electron/universal; runtime package resolution selects the right arch.
-  x64ArchFiles: "Contents/Resources/standalone/node_modules/{@earendil-works/pi-tui/native/darwin/prebuilds/**,@mariozechner/clipboard-darwin-{arm64,x64}/**,@img/sharp-darwin-{arm64,x64}/**,@img/sharp-libvips-darwin-{arm64,x64}/**}"
+  # Only consulted by MAC_ARCH=universal builds: the standalone tree carries
+  # arm64 and x64 native packages side-by-side, and they are identical in both
+  # intermediate apps, so they must be copied from the x64 tree instead of
+  # being lipo'd by @electron/universal; runtime package resolution selects
+  # the right one.
+  x64ArchFiles: "Contents/Resources/standalone/node_modules/{**/@earendil-works/pi-tui/native/darwin/prebuilds/**,**/@mariozechner/clipboard-darwin-{arm64,x64}/**,**/@img/sharp-darwin-{arm64,x64}/**,**/@img/sharp-libvips-darwin-{arm64,x64}/**}"
   artifactName: "Pi-Agent-Desktop-${version}-mac-${arch}.${ext}"
 
 dmg:

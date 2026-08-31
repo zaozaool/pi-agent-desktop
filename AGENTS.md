@@ -10,8 +10,8 @@ npm run dev          # port 30141
 npm run dev:electron # builds electron + opens window
 
 # Production build & package
-npm run dist         # Current OS package: NSIS on Windows, DMG + ZIP on macOS
-npm run dist:mac     # Universal macOS package (Intel + Apple Silicon)
+npm run dist         # Current OS package: NSIS on Windows, DMG on macOS
+npm run dist:mac     # macOS DMG, current arch by default (MAC_ARCH=universal/arm64/x64 overrides)
 ```
 
 Typecheck: `npx tsc --noEmit`  
@@ -112,7 +112,7 @@ Frontend 依赖必须放 `devDependencies`（否则 electron-builder 盲目打�
 
 ### 6. Next 16 Turbopack standalone 必须补齐 turbo runtime
 
-`build:standalone` 会在 `next build` 后依次补齐 Next、Pi 和 macOS Universal 原生运行时。缺少 Next turbo runtime 会导致安装包卡在启动页；缺少 macOS 双架构 Sharp 或删除 `mac.x64ArchFiles` 会导致 Universal 合并失败或 Intel 端运行时错误。详见 [ARCHITECTURE.md §14.10b](docs/ARCHITECTURE.md#1410b-next-16-turbopack-standalone-缺-app-route-runtime2026-08-03) 与 [§14.10c](docs/ARCHITECTURE.md#1410c-macos-universal-必须补齐双架构原生运行时)。
+`build:standalone` 会在 `next build` 后依次补齐 Next、Pi 和 macOS 原生运行时（按 `MAC_ARCH` 对齐目标架构，默认本机单架构）。缺少 Next turbo runtime 会导致安装包卡在启动页；交叉/Universal 构建缺对应架构 Sharp，或删除 `mac.x64ArchFiles`，会导致合并失败或目标架构运行时错误。详见 [ARCHITECTURE.md §14.10b](docs/ARCHITECTURE.md#1410b-next-16-turbopack-standalone-缺-app-route-runtime2026-08-03) 与 [§14.10c](docs/ARCHITECTURE.md#1410c-macos-打包架构选择mac_arch-与原生运行时对齐)。
 
 ---
 

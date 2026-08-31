@@ -52,7 +52,7 @@
 
 Windows 用户下载 `Pi-Agent-Desktop-Setup-x.x.x.exe`，运行即可安装。
 
-macOS 打包支持 Intel 与 Apple Silicon 的 Universal 应用。发布页提供 Mac 资产时，下载 `Pi-Agent-Desktop-x.x.x-mac-universal.dmg`；ZIP 是自动更新所需的配套产物。实际可下载版本以 Releases 资产为准。
+macOS 按架构分发 DMG：`Pi-Agent-Desktop-x.x.x-mac-arm64.dmg`（Apple Silicon）与 `Pi-Agent-Desktop-x.x.x-mac-x64.dmg`（Intel）。实际可下载版本以 Releases 资产为准。
 
 ## 开发
 
@@ -84,7 +84,7 @@ npm run test:macos
 # 构建安装包
 npm run dist
 
-# 在 macOS 上构建 Universal DMG + ZIP
+# 在 macOS 上构建 DMG（默认当前机器架构；MAC_ARCH=arm64/x64/universal 可覆盖）
 npm run dist:mac
 ```
 
@@ -113,16 +113,17 @@ lib/
   normalize.ts       # 规范化 toolCall 字段名
   types.ts
 scripts/
-  ensure-standalone-next-runtimes.mjs             # 补齐 Turbopack runtime
-  ensure-standalone-pi-runtime.mjs                # 补齐 Pi 运行时依赖闭包
-  ensure-standalone-macos-universal-runtimes.mjs  # 补齐两套 macOS Sharp 运行时
+  ensure-standalone-next-runtimes.mjs       # 补齐 Turbopack runtime
+  ensure-standalone-pi-runtime.mjs           # 补齐 Pi 运行时依赖闭包
+  ensure-standalone-macos-runtimes.mjs      # 按 MAC_ARCH 补齐/裁剪 macOS 原生运行时
+  electron-builder-mac.mjs                   # MAC_ARCH → electron-builder 架构参数封装
 ```
 
 ## 技术栈
 
 - **前端**：Next.js + React + TypeScript
 - **桌面**：Electron
-- **打包**：electron-builder（Windows NSIS；macOS Universal DMG + ZIP）
+- **打包**：electron-builder（Windows NSIS；macOS DMG，按 MAC_ARCH 单架构或 Universal）
 - **通信**：SSE (Server-Sent Events) 实时流式传输
 
 ## 致谢

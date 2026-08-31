@@ -22,7 +22,7 @@ test("build scripts name the standalone Next.js build explicitly", () => {
   );
   assert.match(
     pkg.scripts["build:standalone"],
-    /ensure-standalone-macos-universal-runtimes\.mjs/
+    /ensure-standalone-macos-runtimes\.mjs/
   );
   assert.equal(pkg.scripts.build, "npm run build:standalone");
 });
@@ -37,11 +37,23 @@ test("packaging and release scripts call build:standalone", () => {
       /electron-builder.+&& node scripts\/smoke-packaged-standalone\.mjs/
     );
   }
-  assert.match(pkg.scripts["pack:mac"], /electron-builder --mac --universal --dir/);
-  assert.match(pkg.scripts["dist:mac"], /electron-builder --mac --universal --publish never/);
+  assert.match(pkg.scripts["pack:mac"], /node scripts\/electron-builder-mac\.mjs --dir/);
+  assert.match(pkg.scripts["dist:mac"], /node scripts\/electron-builder-mac\.mjs --publish never/);
   for (const scriptName of ["pack:mac", "dist:mac"]) {
     assert.match(pkg.scripts[scriptName], /^npm run build:standalone &&/);
     assert.match(pkg.scripts[scriptName], /&& node scripts\/smoke-packaged-standalone\.mjs$/);
+    assert.doesNotMatch(
+      pkg.scripts[scriptName],
+      /--universal/,
+      "the default macOS scripts must build a single architecture; use MAC_ARCH=universal for a Universal app",
+    );
+  }
+  for (const [scriptName, macArch] of [
+    ["dist:mac:arm64", "arm64"],
+    ["dist:mac:x64", "x64"],
+    ["dist:mac:universal", "universal"],
+  ] as const) {
+    assert.equal(pkg.scripts[scriptName], `MAC_ARCH=${macArch} npm run dist:mac`);
   }
   for (const scriptName of ["pack", "pack:mac", "dist", "dist:mac"]) {
     assert.doesNotMatch(
@@ -80,7 +92,7 @@ test("test scripts cover middleware and scope platform-specific desktop subsets"
   assert.match(macosScript, /"lib\/electron-\*\.test\.mjs"/);
   assert.match(
     macosScript,
-    /ensure-standalone-macos-universal-runtimes\.test\.mjs/,
+    /ensure-standalone-macos-runtimes\.test\.mjs/,
   );
   assert.doesNotMatch(macosScript, /middleware\.test\.ts/);
 });
