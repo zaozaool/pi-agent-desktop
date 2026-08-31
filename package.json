@@ -41,7 +41,7 @@
   },
   "devDependencies": {
     "@earendil-works/pi-ai": "^0.84.3",
-    "@earendil-works/pi-coding-agent": "^0.84.3",
+    "@earendil-works/pi-coding-agent": "^0.84.4",
     "@electron/packager": "^20.3.0",
     "@electron/rebuild": "^4.0.4",
     "@fontsource/inter": "^5.2.8",
