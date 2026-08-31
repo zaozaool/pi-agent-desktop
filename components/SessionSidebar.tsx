@@ -54,6 +54,7 @@ export function SessionSidebar({
   const [error, setError] = useState<string | null>(null);
   const selectedCwd = selectedCwdProp ?? null;
   const [explorerOpen, setExplorerOpen] = useState(false);
+  const [projectsOpen, setProjectsOpen] = useState(true);
   const [explorerKey, setExplorerKey] = useState(0);
   const [sessionRefreshDone, setSessionRefreshDone] = useState(false);
   const [explorerRefreshDone, setExplorerRefreshDone] = useState(false);
@@ -212,7 +213,7 @@ export function SessionSidebar({
       if (!tree || tree.length === 0) {
         return (
           <div style={{ padding: "6px 14px 8px 26px", color: "var(--text-dim)", fontSize: 11 }}>
-            No sessions yet
+            {t("sidebar.noSessionsYet")}
           </div>
         );
       }
@@ -238,7 +239,7 @@ export function SessionSidebar({
         </div>
       );
     },
-    [sessionTreeByCwd, selectedSessionId, onSelectSession, loadSessions, onSessionDeleted, onBranchSession, onCloneSession, onExportSession]
+    [sessionTreeByCwd, selectedSessionId, onSelectSession, loadSessions, onSessionDeleted, onBranchSession, onCloneSession, onExportSession, t]
   );
 
   return (
@@ -254,13 +255,17 @@ export function SessionSidebar({
       {/* Project -> sessions tree */}
       <div
         style={{
-          flex: explorerOpen && (selectedCwdProp || selectedCwd) ? "1 1 0" : "1 1 auto",
+          flex: !projectsOpen
+            ? "0 0 auto"
+            : explorerOpen && (selectedCwdProp || selectedCwd)
+              ? "1 1 0"
+              : "1 1 auto",
           overflowY: "auto",
           padding: "4px 0",
-          minHeight: 80,
+          minHeight: projectsOpen ? 80 : 0,
         }}
       >
-        {loading && (
+        {loading && projectsOpen && (
           <div style={{ padding: "16px 14px", color: "var(--text-muted)", fontSize: 12 }}>
             {t("common.loading")}
           </div>
@@ -275,12 +280,35 @@ export function SessionSidebar({
             {t("sidebar.noProjects")}
           </div>
         )}
-        {/* Projects section header + collapse/expand all + sort toggle */}
+        {/* Projects section header + collapse/expand section + collapse/expand all + sort toggle */}
         {allCwds.length > 0 && (
           <div className="flex items-center justify-between px-2.5 pt-1.5 pb-0.5">
-            <span className="text-[10px] font-semibold tracking-[0.04em] uppercase text-text-dim select-none">
+            <button
+              onClick={() => setProjectsOpen((v) => !v)}
+              aria-expanded={projectsOpen}
+              aria-label={projectsOpen ? t("sidebar.collapseProjects") : t("sidebar.expandProjects")}
+              title={projectsOpen ? t("sidebar.collapseProjects") : t("sidebar.expandProjects")}
+              className="flex items-center gap-1 bg-transparent border-none p-0 text-[10px] font-semibold tracking-[0.04em] uppercase text-text-dim cursor-pointer hover:text-text-muted select-none"
+            >
+              <svg
+                width="9"
+                height="9"
+                viewBox="0 0 10 10"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                style={{
+                  transform: projectsOpen ? "rotate(90deg)" : "none",
+                  transition: "transform 0.15s",
+                  flexShrink: 0,
+                }}
+              >
+                <polyline points="3 2 7 5 3 8" />
+              </svg>
               {t("sidebar.projects")}
-            </span>
+            </button>
             <div className="flex items-center gap-[2px]">
               <button
                 onClick={toggleAllProjects}
@@ -333,6 +361,8 @@ export function SessionSidebar({
             </div>
           </div>
         )}
+        {projectsOpen && (
+          <>
         <ProjectTree
           cwds={sortedCwds}
           selectedCwd={selectedCwd}
@@ -373,6 +403,8 @@ export function SessionSidebar({
             </div>
           )}
         </div>
+          </>
+        )}
       </div>
 
       {/* File Explorer section */}
