@@ -911,6 +911,7 @@
           <div class="arch-node"><span class="icon">🔌</span> preload.ts <code>contextBridge</code></div>
           <div class="arch-node"><span class="icon">📥</span> tray.ts <code>系统托盘</code></div>
           <div class="arch-node"><span class="icon">🌐</span> server-wait.ts <code>子进程就绪探测</code></div>
+          <div class="arch-node"><span class="icon">🧩</span> server-process.ts <code>无界面服务适配</code></div>
           <div class="arch-node"><span class="icon">🔄</span> autoUpdater <code>GitHub Releases</code></div>
           <div class="arch-node"><span class="icon">🚪</span> process-tree.ts <code>进程树管理</code></div>
         </div>
@@ -918,7 +919,7 @@
 
       <!-- Arrows -->
       <div class="arch-arrows">
-        <div class="arrow-down"><div class="line"></div>spawn(ELECTRON_RUN_AS_NODE=1)</div>
+        <div class="arrow-down"><div class="line"></div>macOS utilityProcess / Windows/Linux run-as-node</div>
         <div class="arrow-down"><div class="line"></div>BrowserWindow.loadURL</div>
       </div>
 
@@ -1270,7 +1271,7 @@
       </div>
       <div class="tech-item" style="transition-delay:0.55s">
         <div class="tech-icon">📦</div>
-        <div><div class="tech-name">electron-builder</div><div class="tech-ver">^26.15.3 NSIS</div></div>
+        <div><div class="tech-name">electron-builder</div><div class="tech-ver">^26.15.3 NSIS + DMG/ZIP</div></div>
       </div>
       <div class="tech-item" style="transition-delay:0.6s">
         <div class="tech-icon">🔄</div>
@@ -1372,11 +1373,11 @@
 
     <div class="file-tree">
       <div class="ft-line ft-dir" style="--depth:0"><span class="ft-icon">📁</span><span class="ft-name">pi-agent-desktop/</span></div>
-      <div class="ft-line" style="--depth:1"><span class="ft-icon">📦</span><span class="ft-name">package.json</span><span class="ft-comment">@chasen-liao/pi-agent-desktop v0.8.0</span></div>
+      <div class="ft-line" style="--depth:1"><span class="ft-icon">📦</span><span class="ft-name">package.json</span><span class="ft-comment">@chasen-liao/pi-agent-desktop v0.8.4</span></div>
       <div class="ft-line" style="--depth:1"><span class="ft-icon">⚙️</span><span class="ft-name">next.config.ts</span><span class="ft-comment">standalone + 外部包</span></div>
       <div class="ft-line" style="--depth:1"><span class="ft-icon">🎨</span><span class="ft-name">tailwind.config.ts</span></div>
       <div class="ft-line" style="--depth:1"><span class="ft-icon">📘</span><span class="ft-name">tsconfig.json</span><span class="ft-comment">strict + bundler</span></div>
-      <div class="ft-line" style="--depth:1"><span class="ft-icon">📦</span><span class="ft-name">electron-builder.yml</span><span class="ft-comment">NSIS + extraResources</span></div>
+      <div class="ft-line" style="--depth:1"><span class="ft-icon">📦</span><span class="ft-name">electron-builder.yml</span><span class="ft-comment">NSIS + Universal DMG/ZIP + 原生模块合并规则</span></div>
       <div class="ft-line" style="--depth:1"><span class="ft-icon">🧹</span><span class="ft-name">eslint.config.mjs</span><span class="ft-comment">flat config</span></div>
       <div class="ft-line" style="--depth:1"><span class="ft-icon">🤖</span><span class="ft-name">AGENTS.md</span><span class="ft-comment">开发速查摘要</span></div>
       <div class="ft-line" style="--depth:1"><span class="ft-icon">🧠</span><span class="ft-name">CLAUDE.md</span><span class="ft-comment">Claude Code 指南</span></div>
@@ -1411,6 +1412,7 @@
       <div class="ft-line ft-api" style="--depth:3"><span class="ft-icon">❤️</span><span class="ft-name">health/route.ts</span><span class="ft-comment">桌面端启动探测</span></div>
 
       <div class="ft-line ft-dir" style="--depth:1"><span class="ft-icon">📁</span><span class="ft-name">lib/</span></div>
+      <div class="ft-line ft-lib" style="--depth:2"><span class="ft-icon">🌐</span><span class="ft-name">i18n/</span><span class="ft-comment">en / zh-CN 文案</span></div>
       <div class="ft-line ft-lib" style="--depth:2"><span class="ft-icon">🔌</span><span class="ft-name">rpc-manager.ts</span><span class="ft-comment">★ AgentSession 生命周期</span></div>
       <div class="ft-line ft-lib" style="--depth:2"><span class="ft-icon">📖</span><span class="ft-name">session-reader.ts</span><span class="ft-comment">★ .jsonl 解析 + 路径缓存</span></div>
       <div class="ft-line ft-lib" style="--depth:2"><span class="ft-icon">🌳</span><span class="ft-name">session-cascade.ts</span><span class="ft-comment">级联重 parent</span></div>
@@ -1433,6 +1435,7 @@
       <div class="ft-line ft-lib" style="--depth:2"><span class="ft-icon">🧩</span><span class="ft-name">skills-policy.ts</span><span class="ft-comment">技能鉴权策略</span></div>
 
       <div class="ft-line ft-dir" style="--depth:1"><span class="ft-icon">📁</span><span class="ft-name">components/</span></div>
+      <div class="ft-line ft-comp" style="--depth:2"><span class="ft-icon">🌐</span><span class="ft-name">I18nProvider.tsx</span></div>
       <div class="ft-line ft-comp" style="--depth:2"><span class="ft-icon">🏠</span><span class="ft-name">AppShell.tsx</span></div>
       <div class="ft-line ft-comp" style="--depth:2"><span class="ft-icon">💬</span><span class="ft-name">ChatWindow.tsx</span></div>
       <div class="ft-line ft-comp" style="--depth:2"><span class="ft-icon">⌨️</span><span class="ft-name">ChatInput.tsx</span></div>
@@ -1483,6 +1486,8 @@
       <div class="ft-line ft-elec" style="--depth:2"><span class="ft-icon">🪟</span><span class="ft-name">main.ts</span><span class="ft-comment">★ 主进程入口</span></div>
       <div class="ft-line ft-elec" style="--depth:2"><span class="ft-icon">🔌</span><span class="ft-name">preload.ts</span><span class="ft-comment">contextBridge</span></div>
       <div class="ft-line ft-elec" style="--depth:2"><span class="ft-icon">📥</span><span class="ft-name">tray.ts</span><span class="ft-comment">系统托盘</span></div>
+      <div class="ft-line ft-elec" style="--depth:2"><span class="ft-icon">🧵</span><span class="ft-name">server-process.ts</span><span class="ft-comment">Child/UtilityProcess 封装</span></div>
+      <div class="ft-line ft-elec" style="--depth:2"><span class="ft-icon">🪟</span><span class="ft-name">title-bar-overlay.ts</span><span class="ft-comment">Windows overlay / macOS 跳过</span></div>
       <div class="ft-line ft-elec" style="--depth:2"><span class="ft-icon">🌐</span><span class="ft-name">server-wait.ts</span><span class="ft-comment">就绪探测</span></div>
       <div class="ft-line ft-elec" style="--depth:2"><span class="ft-icon">🔢</span><span class="ft-name">port-selection.ts</span><span class="ft-comment">端口选择</span></div>
       <div class="ft-line ft-elec" style="--depth:2"><span class="ft-icon">🚪</span><span class="ft-name">process-tree.ts</span><span class="ft-comment">进程树管理</span></div>
@@ -1507,7 +1512,7 @@
 </section>
 
 <footer>
-  <p>Pi Agent Desktop 架构深度解析 · 版本 0.8.0 · 2026-08-25 · <a href="https://github.com/Chasen-Liao/pi-agent-desktop" style="color:var(--accent3);text-decoration:none;">pi-agent-desktop</a></p>
+  <p>Pi Agent Desktop 架构深度解析 · 版本 0.8.4 · 2026-08-31 · <a href="https://github.com/Chasen-Liao/pi-agent-desktop" style="color:var(--accent3);text-decoration:none;">pi-agent-desktop</a></p>
 </footer>
 
 <script>

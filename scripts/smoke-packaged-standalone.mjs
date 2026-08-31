@@ -34,13 +34,11 @@ function findPackagedOutput() {
       : null;
   }
 
-  // electron-builder emits "mac" (single-arch dmg/dir) or "mac-arm64" /
-  // "mac-universal" / "mac-x64" depending on the target arch configuration.
-  const macCandidates = ["mac", "mac-arm64", "mac-universal", "mac-x64"]
-    .map((name) => join(releaseDir, name))
-    .filter((dir) => existsSync(dir));
-  if (process.platform === "darwin" && macCandidates.length > 0) {
-    for (const macDir of macCandidates) {
+  if (process.platform === "darwin") {
+    const macOutputs = readdirSync(releaseDir, { withFileTypes: true })
+      .filter((entry) => entry.isDirectory() && /^mac(?:-(?:arm64|x64|universal))?$/.test(entry.name));
+    for (const output of macOutputs) {
+      const macDir = join(releaseDir, output.name);
       for (const entry of readdirSync(macDir, { withFileTypes: true })) {
         if (!entry.isDirectory() || !entry.name.endsWith(".app")) continue;
         const appDir = join(macDir, entry.name, "Contents");

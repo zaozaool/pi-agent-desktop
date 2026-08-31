@@ -79,7 +79,7 @@ export function PiAgentTitle() {
     <button
       onClick={handleClick}
       title="Pi Agent Desktop - click to show version"
-      className="flex items-center gap-2 bg-transparent border-none p-0 cursor-pointer group"
+      className="pi-agent-title flex items-center gap-2 bg-transparent border-none p-0 cursor-pointer group"
     >
       {/* Logo mark - currentColor so it follows the theme text color */}
       <svg

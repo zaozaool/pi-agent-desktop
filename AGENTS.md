@@ -10,13 +10,15 @@ npm run dev          # port 30141
 npm run dev:electron # builds electron + opens window
 
 # Production build & package
-npm run dist         # Next.js build + Electron build + NSIS installer
+npm run dist         # Current OS package: NSIS on Windows, DMG + ZIP on macOS
+npm run dist:mac     # Universal macOS package (Intel + Apple Silicon)
 ```
 
 Typecheck: `npx tsc --noEmit`  
 Lint: `npm run lint`  
 Test: `npm test`（含根目录 `middleware.test.ts`；不要去掉 `--test-force-exit`，否则套件不退出）  
-Windows CI subset: `npm run test:windows`  
+Windows CI subset: `npm run test:windows`
+macOS CI subset: `npm run test:macos`
 **Never run `next build` during dev** — pollutes `.next/` and breaks `npm run dev`.
 
 Release：按 [docs/RELEASING.md](docs/RELEASING.md) 执行；桌面 GitHub Release 不使用会自动 bump patch 的 `npm run release`。
@@ -48,7 +50,7 @@ CodeGraph provides MCP (Model Context Protocol) tools for efficient symbol searc
 ### 双模式架构速查
 
 - **Web 模式**：浏览器 ──HTTP/SSE──▶ Next.js Server(:30141) ──进程内──▶ AgentSession
-- **Desktop 模式**：Electron 主进程以 `ELECTRON_RUN_AS_NODE=1` 启动 Next.js standalone `server.js` 子进程，再开 `BrowserWindow` 指向 `http://127.0.0.1:PORT`
+- **Desktop 模式**：Electron 主进程托管 Next.js standalone `server.js`（macOS 使用无 Dock 图标的 `utilityProcess`；Windows/Linux 使用 `ELECTRON_RUN_AS_NODE=1`），再开 `BrowserWindow` 指向 `http://127.0.0.1:PORT`
 
 ### 关键入口
 
@@ -64,10 +66,10 @@ CodeGraph provides MCP (Model Context Protocol) tools for efficient symbol searc
 | 目录 | 用途 |
 |---|---|
 | `app/api/` | API 路由（agent / sessions / files / models / models-config / skills / auth / health / mcp / extensions / trust / desktop-settings / statusline / **memory** 等共 38 条） |
-| `lib/` | 服务端库：`rpc-manager` / `session-reader` / `approval-policy` / `extension-ui-bridge` / `mcp-config` / `session-export` / `session-branch-clone` / **`ltm`** 等 |
-| `components/` | 26 个顶层组件（含 `McpConfigModal` / `SessionExportModal` / `ExtensionsConfigModal` / `ProjectTrustDialog` / `ExtensionUiDialog` / `AgentModeSelector` 等） |
-| `hooks/` | 6 个顶层 hook + `agent-session/` 子目录下 12 个拆分模块 |
-| `electron/` | 主进程 `main.ts` + `preload.ts` / `tray.ts` + 11 个辅助模块 |
+| `lib/` | 服务端库：`rpc-manager` / `session-reader` / `approval-policy` / `extension-ui-bridge` / `mcp-config` / `session-export` / `session-branch-clone` / **`ltm`** / **`i18n`** 等 |
+| `components/` | 27 个顶层组件（含 `I18nProvider` / `McpConfigModal` / `SessionExportModal` / `ExtensionsConfigModal` / `ProjectTrustDialog` / `ExtensionUiDialog` / `AgentModeSelector` 等） |
+| `hooks/` | 6 个顶层 hook + `agent-session/` 子目录下 15 个拆分模块 |
+| `electron/` | 主进程 `main.ts` + `preload.ts` / `tray.ts` + 14 个辅助模块 |
 | `bin/pi-web.js` | CLI 入口（`npm i -g` / `npx`） |
 ### 必须存 `globalThis` 的原因
 
@@ -85,7 +87,7 @@ Next.js HMR 会丢弃模块级变量，因此会话与 LTM 相关状态必须挂
 ## Key Design Decisions & Traps
 
 > 📖 完整的设计决策与陷阱列表已在 [docs/ARCHITECTURE.md §14](docs/ARCHITECTURE.md#14-关键设计决策与陷阱) 归档。
-> 本节仅保留**最频繁踩坑**的 5 个要点速查。
+> 本节仅保留**最频繁踩坑**的要点速查。
 
 ### 1. Fork 的预注册顺序
 
@@ -110,7 +112,7 @@ Frontend 依赖必须放 `devDependencies`（否则 electron-builder 盲目打�
 
 ### 6. Next 16 Turbopack standalone 必须补齐 turbo runtime
 
-`build:standalone` = `next build && node scripts/ensure-standalone-next-runtimes.mjs`。缺省会导致安装包卡在启动页（`app-route-turbo.runtime.prod.js` missing）。详见 [ARCHITECTURE.md §14.10b](docs/ARCHITECTURE.md#1410b-next-16-turbopack-standalone-缺-app-route-runtime2026-08-03)。
+`build:standalone` 会在 `next build` 后依次补齐 Next、Pi 和 macOS Universal 原生运行时。缺少 Next turbo runtime 会导致安装包卡在启动页；缺少 macOS 双架构 Sharp 或删除 `mac.x64ArchFiles` 会导致 Universal 合并失败或 Intel 端运行时错误。详见 [ARCHITECTURE.md §14.10b](docs/ARCHITECTURE.md#1410b-next-16-turbopack-standalone-缺-app-route-runtime2026-08-03) 与 [§14.10c](docs/ARCHITECTURE.md#1410c-macos-universal-必须补齐双架构原生运行时)。
 
 ---
 
@@ -130,6 +132,10 @@ Quick reference for code: `entryIds[]` in `SessionContext` is a parallel array t
 --accent --user-bg --tool-bg
 --font-mono
 ```
+
+## UI 文案
+
+用户可见字符串走 `lib/i18n`（`en` / `zh-CN`，偏好可 `system`）。新增或改文案时同步改 `lib/i18n/dictionaries.ts` 两边，不要硬编码。
 
 <!-- BEGIN:nextjs-agent-rules -->
 

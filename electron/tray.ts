@@ -1,6 +1,7 @@
 import { app, Menu, Tray, BrowserWindow, nativeImage } from "electron";
 import path from "path";
 import { setQuitting } from "./main";
+import { getAppIconPath } from "./app-icon";
 
 const FALLBACK_PNG_BASE64 =
   "iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAFElEQVQ4y2N" +
@@ -27,8 +28,9 @@ function loadMacTemplateIcon(): Electron.NativeImage | null {
 }
 
 function loadWindowsIcon(): Electron.NativeImage {
-  // Use .ico for Windows tray icon (SVG not reliably supported on Win10)
-  const iconPath = path.join(app.getAppPath(), "build", "icon.ico");
+  // Packaged app icon (.ico on Windows, .icns as macOS fallback); SVG is
+  // not reliably supported by the Win10 tray.
+  const iconPath = getAppIconPath(app.getAppPath());
   try {
     const icon = nativeImage.createFromPath(iconPath);
     return icon.isEmpty() ? fallbackIcon() : icon;

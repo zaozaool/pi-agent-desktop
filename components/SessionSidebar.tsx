@@ -8,6 +8,7 @@ import { SessionTreeItem } from "./session-sidebar/SessionTree";
 import { ProjectTree } from "./session-sidebar/ProjectTree";
 import { buildSessionTree, getAllCwds, getRecentCwds, pickDirectoryFromHost, sortCwdsAlphabetically } from "./session-sidebar/helpers";
 import { resolveCustomPathSelection } from "@/lib/custom-path-selection";
+import { useI18n } from "./I18nProvider";
 
 type ProjectSortMode = "recent" | "alpha";
 const PROJECT_SORT_STORAGE_KEY = "pi.sidebar.projectSort";
@@ -47,6 +48,7 @@ export function SessionSidebar({
   explorerRefreshKey,
   onAtMention,
 }: Props) {
+  const { t } = useI18n();
   const [allSessions, setAllSessions] = useState<SessionInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -260,7 +262,7 @@ export function SessionSidebar({
       >
         {loading && (
           <div style={{ padding: "16px 14px", color: "var(--text-muted)", fontSize: 12 }}>
-            Loading...
+            {t("common.loading")}
           </div>
         )}
         {error && (
@@ -422,7 +424,7 @@ export function SessionSidebar({
               >
                 <polyline points="3 2 7 5 3 8" />
               </svg>
-              Explorer
+              {t("sidebar.explorer")}
             </button>
             <button
               onClick={() => {
@@ -431,8 +433,8 @@ export function SessionSidebar({
                 if (explorerRefreshTimerRef.current) clearTimeout(explorerRefreshTimerRef.current);
                 explorerRefreshTimerRef.current = setTimeout(() => setExplorerRefreshDone(false), 2000);
               }}
-              title="Refresh explorer"
-              aria-label="Refresh explorer"
+              title={t("sidebar.refreshExplorer")}
+              aria-label={t("sidebar.refreshExplorer")}
               style={{
                 display: "flex",
                 alignItems: "center",

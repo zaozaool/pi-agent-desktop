@@ -11,6 +11,7 @@ files:
   - build/icon.ico
   - build/tray-icon-mac.png
   - build/tray-icon-mac@2x.png
+  - build/icon.icns
   - electron/dist/**/*
   - "!electron/**/*.ts"
   - "!electron/tsconfig.json"
@@ -74,15 +75,6 @@ asar: true
 
 npmRebuild: true
 
-electronDist: node_modules/electron/dist
-
-mac:
-  icon: build/icon.icns
-  category: public.app-category.developer-tools
-  target:
-    - target: dmg
-  # 未签名/未公证：首次打开需右键 -> 打开绕过 Gatekeeper
-
 win:
   target:
     - target: nsis
@@ -100,6 +92,26 @@ nsis:
   uninstallDisplayName: Pi Agent Desktop
   artifactName: "Pi-Agent-Desktop-Setup-${version}.${ext}"
   include: build/installer.nsh
+
+mac:
+  target:
+    - target: dmg
+      arch:
+        - universal
+    - target: zip
+      arch:
+        - universal
+  icon: build/icon.icns
+  category: public.app-category.developer-tools
+  darkModeSupport: true
+  # Standalone contains architecture-specific native packages side-by-side.
+  # They are identical in both intermediate apps and must not be lipo'd by
+  # @electron/universal; runtime package resolution selects the right arch.
+  x64ArchFiles: "Contents/Resources/standalone/node_modules/{@earendil-works/pi-tui/native/darwin/prebuilds/**,@mariozechner/clipboard-darwin-{arm64,x64}/**,@img/sharp-darwin-{arm64,x64}/**,@img/sharp-libvips-darwin-{arm64,x64}/**}"
+  artifactName: "Pi-Agent-Desktop-${version}-mac-${arch}.${ext}"
+
+dmg:
+  title: "Pi Agent Desktop ${version}"
 
 publish:
   provider: github
