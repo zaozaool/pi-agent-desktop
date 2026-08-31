@@ -1027,9 +1027,12 @@ span.linenumber {
   height: var(--control-height) !important;
 }
 
-/* macOS traffic lights occupy the left side of the hidden title bar. */
+/* macOS traffic lights sit at the top-left of the hidden title bar (x: 14-66);
+   shift the sidebar title right of them instead of hiding it. The 10px row
+   padding + 70px margin lands the logo at x=80, matching the leading safe
+   area reserved when the sidebar is collapsed. */
 html[data-electron-platform="darwin"] .sidebar-title-row .pi-agent-title {
-  display: none;
+  margin-left: 70px;
 }
 
 .macos-titlebar-leading-safe-area {
