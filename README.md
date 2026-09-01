@@ -123,6 +123,7 @@ scripts/
   ensure-standalone-pi-runtime.mjs           # 补齐 Pi 运行时依赖闭包
   ensure-standalone-macos-runtimes.mjs      # 按 MAC_ARCH 补齐/裁剪 macOS 原生运行时
   electron-builder-mac.mjs                   # MAC_ARCH → electron-builder 架构参数封装
+  dereference-standalone-symlinks.mjs             # 打包前落实 standalone 符号链接
 ```
 
 ## 技术栈
@@ -136,6 +137,10 @@ scripts/
 
 - [pi-mono](https://github.com/badlogic/pi-mono) — Pi 编程智能体核心
 - [pi-web](https://github.com/agegr/pi-web) — 上游 Web 界面项目
+
+## 协作
+
+报 Issue、提 PR、合并方式见 [CONTRIBUTING.md](CONTRIBUTING.md)。发版见 [docs/RELEASING.md](docs/RELEASING.md)。
 
 ## 许可
 
