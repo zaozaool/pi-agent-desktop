@@ -31,6 +31,15 @@ if (!archFlags) {
 }
 
 const forwardedArgs = process.argv.slice(2);
+
+// Universal release builds need the ZIP artifact for macOS auto-update
+// (electron-updater only consumes ZIP on macOS). electron-builder.yml keeps
+// a plain dmg target so host/arch-specific local builds stay fast; the CLI
+// target list overrides the config for universal builds only.
+const targetArgs =
+  rawArch === "universal" && !forwardedArgs.includes("--dir")
+    ? ["dmg", "zip"]
+    : [];
 const conflictingFlags = new Set([
   "--ia32",
   "--armv7l",
@@ -45,7 +54,13 @@ if (forwardedArgs.some((arg) => conflictingFlags.has(arg))) {
   process.exit(1);
 }
 
-const child = spawn("npx", ["electron-builder", "--mac", ...archFlags, ...forwardedArgs], {
+const child = spawn("npx", [
+  "electron-builder",
+  "--mac",
+  ...archFlags,
+  ...targetArgs,
+  ...forwardedArgs,
+], {
   stdio: "inherit",
   windowsHide: true,
 });

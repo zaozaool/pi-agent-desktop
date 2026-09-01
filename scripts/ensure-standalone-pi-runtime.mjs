@@ -12,6 +12,7 @@ import {
   readlinkSync,
   realpathSync,
   rmSync,
+  unlinkSync,
 } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -54,14 +55,16 @@ export function flattenEscapingSymlinks(rootDirInput) {
         // anywhere (absolute target). Relative ones may still resolve once
         // the rest of the tree is populated.
         if (readlinkSync(p).startsWith("/")) {
-          rmSync(p);
+          // unlink (not rmSync): Node >= 24.5 cannot remove dangling symlinks
+          // with fs.rm due to its internal stat-based type check.
+          unlinkSync(p);
           flattened.push(relative(rootDir, p));
         }
         continue;
       }
       if (!escapes(resolved)) continue;
 
-      rmSync(p);
+      unlinkSync(p);
       cpSync(resolved, p, { recursive: true, force: true });
       flattened.push(relative(rootDir, p));
       // The replacement may itself be a directory containing symlinks.

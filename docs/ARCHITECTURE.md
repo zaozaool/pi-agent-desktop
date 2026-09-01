@@ -3,9 +3,9 @@
 > 本文档是项目的**权威架构参考**，由 CodeGraph 静态分析 + 源码核对生成。
 > 若与 `AGENTS.md` / `CLAUDE.md` 中的简要描述冲突，以本文档为准。
 >
-- **项目**：`@chasen-liao/pi-agent-desktop` v0.8.4
+- **项目**：`@chasen-liao/pi-agent-desktop` v0.8.5
 - **上游 SDK**：`@earendil-works/pi-coding-agent` ^0.84.3 / `@earendil-works/pi-ai` ^0.84.3
-- **更新日期**：2026-08-31
+- **更新日期**：2026-09-01
 
 ---
 
@@ -143,11 +143,12 @@ flowchart TD
 
 ```text
 pi-agent-desktop/
-├── package.json                  @chasen-liao/pi-agent-desktop v0.8.4
+├── package.json                  @chasen-liao/pi-agent-desktop v0.8.5
 ├── next.config.ts                output:"standalone" + server external packages
 ├── tailwind.config.ts            Tailwind 4 配置
 ├── tsconfig.json                 strict + bundler resolution
-├── electron-builder.yml          Windows NSIS + macOS DMG/ZIP 打包配置
+├── electron-builder.yml          Windows NSIS + macOS DMG/ZIP + Linux DEB 打包配置
+├── .github/workflows/            ci.yml 测试；desktop-packages.yml 打 v* 桌面包
 ├── eslint.config.mjs             ESLint 9 flat config
 │
 ├── bin/
@@ -278,7 +279,8 @@ pi-agent-desktop/
 ├── build/
 │   ├── installer.nsh             NSIS 自定义安装脚本
 │   ├── icon.ico                  Windows 应用与托盘图标
-│   └── icon.icns                 macOS 应用与托盘图标
+│   ├── icon.icns                 macOS 应用与托盘图标
+│   └── icon.png                  Linux deb 桌面项与 hicolor 图标（512px）
 │
 ├── docs/                         本目录
 │   ├── ARCHITECTURE.md           ★ 本文档
@@ -647,7 +649,7 @@ components/models-config/     模型配置弹窗的子组件
 | `log-format.ts` | 日志格式化 |
 | `env-filter.ts` | 过滤敏感环境变量传给子进程 |
 
-### 生产环境打包布局（Windows NSIS / macOS DMG 与 ZIP 内）
+### 生产环境打包布局（Windows NSIS / macOS DMG 与 ZIP / Linux DEB 内）
 
 ```
 resources/
@@ -804,11 +806,12 @@ Next.js NFT 只会追踪构建宿主架构的可选原生依赖。在 Apple Sili
 **修复链路**：
 
 - `scripts/ensure-standalone-macos-runtimes.mjs` 从 standalone 的 `sharp/package.json` 读取精确可选依赖版本，按 MAC_ARCH 补齐目标架构的 Sharp 与 libvips（宿主已有则复制，缺失则 `npm pack` 下载）；单架构时**裁掉**另一架构的 Sharp/libvips、Pi TUI prebuilds 目录与 Clipboard 架构兜底包（universal 剪切板绑定双架构可用，无需处理）。
-- `scripts/electron-builder-mac.mjs` 把 MAC_ARCH 映射成 electron-builder 的 `--arm64` / `--x64` / `--universal`（`host` 不传，electron-builder 默认本机架构），其余参数原样透传。`dist:mac:arm64` / `dist:mac:x64` / `dist:mac:universal` 是对应糖脚本。
-- `electron-builder.yml` 的 `mac.x64ArchFiles` 只在 `MAC_ARCH=universal` 时被消费：让合并器把 Pi TUI、Clipboard、Sharp 与 libvips 的架构专用目录从 x64 中间应用直接复制而不 `lipo`；Electron 主可执行文件等其他 Mach-O 仍正常合并。
+- `scripts/electron-builder-mac.mjs` 把 MAC_ARCH 映射成 electron-builder 的 `--arm64` / `--x64` / `--universal`（`host` 不传，electron-builder 默认本机架构），其余参数原样透传。`dist:mac:arm64` / `dist:mac:x64` / `dist:mac:universal` 是对应糖脚本；`universal` 时额外指定 `dmg zip` 两个 target（electron-builder CLI target 列表会覆盖 yml 的 `mac.target`），因为 macOS 自动更新（electron-updater/Squirrel.Mac）只支持 ZIP 产物，dmg-only 的包只能提示新版本、需手动下载安装。
+- `electron-builder.yml` 的 `mac.x64ArchFiles` 只在 `MAC_ARCH=universal` 时被消费：匹配 standalone 与 `standalone/.next`（NFT 哈希目录；minimatch 默认不进点目录，必须显式写出 `.next`）下的 Pi TUI / Clipboard / Sharp 与 libvips 架构专用文件，让合并器从 x64 中间应用直接复制而不 `lipo`；Electron 主可执行文件等其他 Mach-O 仍正常合并。
+- standalone `node_modules` 若仍含指向构建机 `node_modules` 的符号链接，`@electron/universal` 会对 x64/arm64 临时目录算出不同的 `relativePath`（同一 `semver.js` 在一边是 `../../../node_modules/...`，另一边是 `../../../../../../../../Users/runner/...`）并中止合并。`scripts/dereference-standalone-symlinks.mjs` 在打包前把这些链接落实成文件（`ensure-standalone-pi-runtime.mjs` 内也有一层同样的防御）。
 - `@electron/rebuild` 由 electron-builder 自动调用，打包脚本不得再显式运行一遍，也不需要作为顶层 devDependency。
 
-验证不能只看构建退出码：单架构包用 `lipo -archs` 确认只含目标架构；universal 包应为 `x86_64 arm64`，并应分别用原生 arm64 与 Rosetta x64 进程加载 packaged standalone 中的 `sharp`。注意：mac 自动更新（electron-updater/Squirrel.Mac）只支持 ZIP 产物，dmg-only 配置下 macOS 端只能提示新版本、需手动下载安装。
+验证不能只看构建退出码：单架构包用 `lipo -archs` 确认只含目标架构；universal 包应为 `x86_64 arm64`，并应分别用原生 arm64 与 Rosetta x64 进程加载 packaged standalone 中的 `sharp`。
 
 ### 14.11 安全文件访问：allowed-roots 鉴权模型
 
@@ -890,7 +893,7 @@ Issue #20「对话进行当中突然白屏」的调研（[docs/research/issue-20
 | AI SDK | @earendil-works/pi-ai | ^0.84.3 |
 | 品牌图标 | @lobehub/icons | ^5.6.0 |
 | 桌面壳 | Electron | ^43.4.1 |
-| 打包 | electron-builder（Windows NSIS；macOS DMG，按 MAC_ARCH 单架构或 Universal） | ^26.15.3 |
+| 打包 | electron-builder（Windows NSIS；macOS DMG，按 MAC_ARCH 单架构或 Universal；Linux DEB） | ^26.15.3 |
 | 自动更新 | electron-updater | ^6.8.9 |
 | Lint | ESLint（flat config） | ^9 |
 | 测试 | node:test | 内置 |

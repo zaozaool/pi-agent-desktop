@@ -1,9 +1,11 @@
 {
   "name": "@chasen-liao/pi-agent-desktop",
-  "version": "0.8.4",
+  "version": "0.8.5",
   "description": "Pi Agent Desktop — desktop client for the pi coding agent",
   "license": "MIT",
   "author": "Chasen",
+  "homepage": "https://github.com/Chasen-Liao/pi-agent-desktop",
+  "desktopName": "pi-agent-desktop",
   "main": "electron/dist/main.js",
   "bin": {
     "pi-web": "bin/pi-web.js"
@@ -21,7 +23,7 @@
   "scripts": {
     "dev": "next dev -p 30141",
     "build": "npm run build:standalone",
-    "build:standalone": "next build && node scripts/ensure-standalone-next-runtimes.mjs && node scripts/ensure-standalone-pi-runtime.mjs && node scripts/ensure-standalone-macos-runtimes.mjs && node scripts/smoke-standalone-server.mjs",
+    "build:standalone": "next build && node scripts/ensure-standalone-next-runtimes.mjs && node scripts/ensure-standalone-pi-runtime.mjs && node scripts/ensure-standalone-macos-runtimes.mjs && node scripts/dereference-standalone-symlinks.mjs && node scripts/smoke-standalone-server.mjs",
     "start": "next start -p 30141",
     "lint": "eslint .",
     "check:electron-deps": "node lib/electron-updater-runtime-deps.mjs --check",
@@ -35,6 +37,7 @@
     "pack:mac": "npm run build:standalone && npm run build:electron && node scripts/electron-builder-mac.mjs --dir && node scripts/smoke-packaged-standalone.mjs",
     "dist": "npm run build:standalone && npm run build:electron && npx electron-builder --publish never && node scripts/smoke-packaged-standalone.mjs",
     "dist:mac": "npm run build:standalone && npm run build:electron && node scripts/electron-builder-mac.mjs --publish never && node scripts/smoke-packaged-standalone.mjs",
+    "dist:mac:universal": "MAC_ARCH=universal npm run dist:mac",
     "dist:mac:arm64": "MAC_ARCH=arm64 npm run dist:mac",
     "dist:mac:x64": "MAC_ARCH=x64 npm run dist:mac",
     "dist:mac:universal": "MAC_ARCH=universal npm run dist:mac"

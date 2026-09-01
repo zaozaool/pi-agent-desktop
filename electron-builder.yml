@@ -93,6 +93,18 @@ nsis:
   artifactName: "Pi-Agent-Desktop-Setup-${version}.${ext}"
   include: build/installer.nsh
 
+linux:
+  executableName: pi-agent-desktop
+  syncDesktopName: true
+  maintainer: "Chasen <Chasen-Liao@users.noreply.github.com>"
+  target:
+    - target: deb
+      arch:
+        - x64
+  icon: build/icon.png
+  category: Development
+  artifactName: "Pi-Agent-Desktop-${version}-linux-${arch}.${ext}"
+
 mac:
   # No arch is baked in here: scripts/electron-builder-mac.mjs derives it from
   # MAC_ARCH (host by default; arm64 / x64 / universal are also supported).
@@ -106,7 +118,10 @@ mac:
   # intermediate apps, so they must be copied from the x64 tree instead of
   # being lipo'd by @electron/universal; runtime package resolution selects
   # the right one.
-  x64ArchFiles: "Contents/Resources/standalone/node_modules/{**/@earendil-works/pi-tui/native/darwin/prebuilds/**,**/@mariozechner/clipboard-darwin-{arm64,x64}/**,**/@img/sharp-darwin-{arm64,x64}/**,**/@img/sharp-libvips-darwin-{arm64,x64}/**}"
+  # Brace includes standalone/.next: minimatch skips dotdirs unless named.
+  # NFT copies native addons under hashed pi-coding-agent there; both arch
+  # builds contain the same .node/.dylib and must not be lipo'd.
+  x64ArchFiles: "Contents/Resources/standalone{,/.next}/**/{**/@earendil-works/pi-tui/native/darwin/prebuilds/**,**/@mariozechner/clipboard-darwin-{arm64,x64}/**,**/@img/sharp-darwin-{arm64,x64}/**,**/@img/sharp-libvips-darwin-{arm64,x64}/**}"
   artifactName: "Pi-Agent-Desktop-${version}-mac-${arch}.${ext}"
 
 dmg:
