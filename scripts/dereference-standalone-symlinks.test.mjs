@@ -48,6 +48,22 @@ test("materializes a file symlink that points outside the tree", () => {
   });
 });
 
+test("keeps symlinks that resolve inside the tree", () => {
+  withTempTree((dir) => {
+    const real = join(dir, "standalone", "node_modules", "real-pkg");
+    mkdirSync(real, { recursive: true });
+    writeFileSync(join(real, "index.js"), "module.exports = 1;\n");
+    const link = join(dir, "standalone", "node_modules", "aliased-pkg");
+    symlinkSync("real-pkg", link);
+    const { replaced, removed } = dereferenceSymlinks(join(dir, "standalone"));
+    assert.equal(replaced, 0);
+    assert.equal(removed, 0);
+    const kept = collectSymlinks(join(dir, "standalone"));
+    assert.equal(kept.length, 1);
+    assert.equal(kept[0], link);
+  });
+});
+
 test("drops dangling symlinks", () => {
   withTempTree((dir) => {
     const nested = join(dir, "standalone", "node_modules");
