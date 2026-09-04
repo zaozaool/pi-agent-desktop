@@ -81,7 +81,9 @@ export function useGitBranches(
   }, [cwd]);
 
   const fetchRemote = useCallback(async () => {
-    if (!cwd) return false;
+    // Non-git directories have no fetch button rendered; guard here too so a
+    // stale call never runs git fetch or surfaces an error for them.
+    if (!cwd || !isGit) return false;
     setBusy(true);
     setError(null);
     setFetchMessage(null);
@@ -109,7 +111,7 @@ export function useGitBranches(
     } finally {
       setBusy(false);
     }
-  }, [cwd, onFetched]);
+  }, [cwd, isGit, onFetched]);
 
   return { isGit, current, branches, remoteBranches, busy, error, fetchMessage, fetchRemote };
 }

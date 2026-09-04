@@ -52,9 +52,14 @@ export async function POST(req: Request) {
     if (!(await isPathAllowedAsync(cwd))) {
       return NextResponse.json({ error: "Path not allowed" }, { status: 403 });
     }
-    const { message } = await fetchGit(cwd);
     const info = await listGitBranches(cwd);
-    return NextResponse.json({ ...info, message });
+    if (!info.isGitRepo) {
+      // Not a git repo: nothing to fetch, not an error either.
+      return NextResponse.json(info);
+    }
+    const { message } = await fetchGit(cwd);
+    const refreshed = await listGitBranches(cwd);
+    return NextResponse.json({ ...refreshed, message });
   } catch (error) {
     if (error instanceof GitBranchError) {
       return NextResponse.json(
