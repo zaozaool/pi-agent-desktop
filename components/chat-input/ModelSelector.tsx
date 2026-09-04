@@ -40,7 +40,10 @@ export function ModelSelector({
 
   // Group options by provider, preserving insertion order
   const modelsByProvider: { provider: string; options: ModelOption[] }[] = [];
-  for (const opt of modelOptions) {
+  for (const opt of [...modelOptions].sort((a, b) =>
+    a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: "base" }) ||
+    a.modelId.localeCompare(b.modelId, undefined, { numeric: true, sensitivity: "base" }),
+  )) {
     const group = modelsByProvider.find((g) => g.provider === opt.provider);
     if (group) group.options.push(opt);
     else modelsByProvider.push({ provider: opt.provider, options: [opt] });
