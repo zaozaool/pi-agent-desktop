@@ -1,7 +1,7 @@
 import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve, sep } from "node:path";
 import { SessionManager } from "@earendil-works/pi-coding-agent";
@@ -187,7 +187,9 @@ test("POST /api/sessions/[id]/clone rejects a missing worktree source", async ()
 test("POST /api/sessions/[id]/clone creates a session in a Git worktree", async () => {
   const repoDir = mkdtempSync(join(tmpdir(), "pi-clone-worktree-test-"));
   const targetParent = mkdtempSync(join(tmpdir(), "pi-clone-worktree-target-"));
-  const targetCwd = join(targetParent, "worktree");
+  // The clone route reports realpath'd paths; macOS aliases /tmp to /private/tmp,
+  // so anchor the expected cwd on the canonical temp path (no-op on Linux).
+  const targetCwd = join(realpathSync(targetParent), "worktree");
   const branchName = "pi-agent/route-worktree";
   let clonedSessionFile: string | null = null;
   let worktreeCreated = false;
