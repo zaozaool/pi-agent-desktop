@@ -28,7 +28,8 @@ test("listGitBranches reports the repo state with sorted branches", async () => 
       "rev-parse --abbrev-ref HEAD": { stdout: "main\n" },
       "branch --format=%(refname:short)": { stdout: "feature/zeta\nmain\nfeature/alpha\n" },
       "branch --remotes --format=%(refname:short)": {
-        stdout: "origin/HEAD\norigin/main\nupstream/feature/alpha\n",
+        // bare "origin" is the shortened origin/HEAD symref — must be dropped
+        stdout: "origin\norigin/main\nupstream/feature/alpha\n",
       },
     },
     calls

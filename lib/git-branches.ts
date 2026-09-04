@@ -88,8 +88,9 @@ export async function listGitBranches(
     .split("\n")
     .map((line) => line.trim())
     .filter(Boolean)
-    // symref origin/HEAD points at the default branch, not a real branch
-    .filter((line) => !line.endsWith("/HEAD"))
+    // %(refname:short) shortens the origin/HEAD symref to bare "origin"; a
+    // real remote branch always looks like <remote>/<branch>.
+    .filter((line) => line.includes("/") && !line.endsWith("/HEAD"))
     .sort((a, b) => a.localeCompare(b));
 
   return {
