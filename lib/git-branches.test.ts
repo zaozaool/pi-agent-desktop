@@ -27,6 +27,9 @@ test("listGitBranches reports the repo state with sorted branches", async () => 
       "rev-parse --is-inside-work-tree": { stdout: "true\n" },
       "rev-parse --abbrev-ref HEAD": { stdout: "main\n" },
       "branch --format=%(refname:short)": { stdout: "feature/zeta\nmain\nfeature/alpha\n" },
+      "branch --remotes --format=%(refname:short)": {
+        stdout: "origin/HEAD\norigin/main\nupstream/feature/alpha\n",
+      },
     },
     calls
   );
@@ -35,11 +38,13 @@ test("listGitBranches reports the repo state with sorted branches", async () => 
     isGitRepo: true,
     current: "main",
     branches: ["feature/alpha", "feature/zeta", "main"],
+    remoteBranches: ["origin/main", "upstream/feature/alpha"],
   });
   assert.deepEqual(calls, [
     ["rev-parse", "--is-inside-work-tree"],
     ["rev-parse", "--abbrev-ref", "HEAD"],
     ["branch", "--format=%(refname:short)"],
+    ["branch", "--remotes", "--format=%(refname:short)"],
   ]);
 });
 
@@ -48,6 +53,7 @@ test("listGitBranches reports detached HEAD as no current branch", async () => {
     "rev-parse --is-inside-work-tree": { stdout: "true\n" },
     "rev-parse --abbrev-ref HEAD": { stdout: "HEAD\n" },
     "branch --format=%(refname:short)": { stdout: "main\n" },
+    "branch --remotes --format=%(refname:short)": { stdout: "origin/main\n" },
   });
   const info = await listGitBranches("/repo", runner);
   assert.equal(info.isGitRepo, true);
@@ -62,7 +68,7 @@ test("listGitBranches detects non-git directories", async () => {
     calls
   );
   const info = await listGitBranches("/plain", runner);
-  assert.deepEqual(info, { isGitRepo: false, current: null, branches: [] });
+  assert.deepEqual(info, { isGitRepo: false, current: null, branches: [], remoteBranches: [] });
   assert.equal(calls.length, 1, "should not probe branches outside a repo");
 });
 

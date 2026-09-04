@@ -5,6 +5,8 @@ export type GitBranchesInfo = {
   /** Currently checked out branch, or null when detached / not a repo */
   current: string | null;
   branches: string[];
+  /** Local remote-tracking refs (origin/...), sorted; excludes origin/HEAD */
+  remoteBranches: string[];
 };
 
 export type GitRunner = (
@@ -64,21 +66,30 @@ export async function listGitBranches(
 ): Promise<GitBranchesInfo> {
   const inside = await runner(["rev-parse", "--is-inside-work-tree"], { cwd });
   if (inside.code !== 0 || inside.stdout.trim() !== "true") {
-    return { isGitRepo: false, current: null, branches: [] };
+    return { isGitRepo: false, current: null, branches: [], remoteBranches: [] };
   }
 
-  const [head, branchList] = await Promise.all([
+  const [head, branchList, remoteList] = await Promise.all([
     runner(["rev-parse", "--abbrev-ref", "HEAD"], { cwd }),
     runner(["branch", "--format=%(refname:short)"], { cwd }),
+    runner(["branch", "--remotes", "--format=%(refname:short)"], { cwd }),
   ]);
   if (head.code !== 0) throw toError(head);
   if (branchList.code !== 0) throw toError(branchList);
+  if (remoteList.code !== 0) throw toError(remoteList);
 
   const ref = head.stdout.trim();
   const branches = branchList.stdout
     .split("\n")
     .map((line) => line.trim())
     .filter(Boolean)
+    .sort((a, b) => a.localeCompare(b));
+  const remoteBranches = remoteList.stdout
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+    // symref origin/HEAD points at the default branch, not a real branch
+    .filter((line) => !line.endsWith("/HEAD"))
     .sort((a, b) => a.localeCompare(b));
 
   return {
@@ -87,6 +98,7 @@ export async function listGitBranches(
     // branch here as well since `branch` is repo-wide but HEAD is per-worktree.
     current: ref && ref !== "HEAD" ? ref : null,
     branches,
+    remoteBranches,
   };
 }
 

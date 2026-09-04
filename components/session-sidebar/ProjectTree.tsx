@@ -33,6 +33,38 @@ export function ProjectTree({ cwds, selectedCwd, onSelect, renderProject, sessio
     if (fetchDoneTimerRef.current) clearTimeout(fetchDoneTimerRef.current);
   }, []);
 
+  // Read-only branch panel (local + collapsed remote list)
+  const [branchMenuOpen, setBranchMenuOpen] = React.useState(false);
+  const [remoteOpen, setRemoteOpen] = React.useState(false);
+  const [branchMenuRect, setBranchMenuRect] = React.useState<{ top: number; left: number } | null>(null);
+  const branchRowRef = React.useRef<HTMLDivElement | null>(null);
+  const branchPanelRef = React.useRef<HTMLDivElement | null>(null);
+
+  React.useEffect(() => {
+    if (!branchMenuOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (
+        branchRowRef.current && !branchRowRef.current.contains(e.target as Node) &&
+        branchPanelRef.current && !branchPanelRef.current.contains(e.target as Node)
+      ) {
+        setBranchMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [branchMenuOpen]);
+
+  React.useEffect(() => {
+    setBranchMenuOpen(false);
+  }, [selectedCwd]);
+
+  const openBranchMenu = (e: React.MouseEvent) => {
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    setBranchMenuRect({ top: rect.bottom + 6, left: rect.left });
+    setBranchMenuOpen((v) => !v);
+    setRemoteOpen(false);
+  };
+
   const handleFetch = async () => {
     if (!gitBranches || gitBranches.busy) return;
     const ok = await gitBranches.fetchRemote();
@@ -94,17 +126,26 @@ export function ProjectTree({ cwds, selectedCwd, onSelect, renderProject, sessio
               <span className="flex-1 overflow-hidden text-ellipsis whitespace-nowrap py-[6px]">{pathBasename(cwd)}</span>
 
               {isSelected && gitBranches?.isGit && gitBranches.current && (
-                <div className="shrink-0 flex items-center gap-[3px]">
-                  <span
-                    className="flex items-center gap-[3px] max-w-[110px] h-[16px] px-[5px] bg-transparent border border-[var(--border)] rounded-full text-[9px] font-mono text-text-dim"
-                    title={gitBranches.current}
+                <div ref={branchRowRef} className="shrink-0 flex items-center gap-[3px]">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      openBranchMenu(e);
+                    }}
+                    aria-label={t("git.branches")}
+                    title={t("git.branches")}
+                    className={`flex items-center gap-[3px] max-w-[110px] h-[16px] px-[5px] bg-transparent border border-[var(--border)] rounded-full text-[9px] font-mono cursor-pointer transition-colors duration-150 ${
+                      branchMenuOpen
+                        ? "text-text bg-bg-hover"
+                        : "text-text-dim hover:text-text hover:bg-bg-hover"
+                    }`}
                   >
                     <svg width="8" height="8" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" style={{ flexShrink: 0 }}>
                       <circle cx="4" cy="4" r="2" /><circle cx="4" cy="12" r="2" /><circle cx="12" cy="8" r="2" />
                       <path d="M4 6v4M12 10c0-2-2-2-4-2" />
                     </svg>
                     <span className="overflow-hidden text-ellipsis whitespace-nowrap">{gitBranches.current}</span>
-                  </span>
+                  </button>
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
@@ -175,6 +216,97 @@ export function ProjectTree({ cwds, selectedCwd, onSelect, renderProject, sessio
                 title={gitBranches.error}
               >
                 {t("git.fetchError")}
+              </div>
+            )}
+
+            {isSelected && branchMenuOpen && branchMenuRect && gitBranches && (
+              <div
+                ref={branchPanelRef}
+                className="t-dropdown is-open material-popover"
+                data-origin="top-left"
+                style={{
+                  position: "fixed",
+                  top: branchMenuRect.top,
+                  left: branchMenuRect.left,
+                  zIndex: 500,
+                  background: "var(--material-popover)",
+                  border: "1px solid var(--border)",
+                  borderRadius: "var(--radius-panel)",
+                  boxShadow: "var(--shadow-popover)",
+                  overflow: "hidden",
+                  minWidth: 180,
+                  maxWidth: 260,
+                }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div style={{ maxHeight: 260, overflowY: "auto" }}>
+                  {gitBranches.branches.map((branch) => {
+                    const isCurrent = branch === gitBranches.current;
+                    return (
+                      <div
+                        key={branch}
+                        style={{
+                          display: "flex", alignItems: "center", gap: 6,
+                          padding: "6px 12px",
+                          background: isCurrent ? "var(--bg-selected)" : "none",
+                          color: isCurrent ? "var(--text)" : "var(--text-muted)",
+                          fontSize: 11,
+                          fontWeight: isCurrent ? 600 : 400,
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        {isCurrent
+                          ? <svg width="9" height="9" viewBox="0 0 10 10" fill="none" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><polyline points="1.5 5 4 7.5 8.5 2.5" /></svg>
+                          : <span style={{ width: 9, flexShrink: 0 }} />}
+                        <span className="overflow-hidden text-ellipsis">{branch}</span>
+                      </div>
+                    );
+                  })}
+
+                  {gitBranches.remoteBranches.length > 0 && (
+                    <button
+                      onClick={() => setRemoteOpen((v) => !v)}
+                      aria-expanded={remoteOpen}
+                      style={{
+                        display: "flex", alignItems: "center", gap: 5,
+                        width: "100%", padding: "6px 12px",
+                        background: "none", border: "none",
+                        color: "var(--text-dim)",
+                        cursor: "pointer", fontSize: 10, textAlign: "left",
+                      }}
+                      className="hover:bg-[var(--bg-hover)] transition-colors duration-150"
+                    >
+                      <svg
+                        width="8" height="8" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.8"
+                        strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, transform: remoteOpen ? "rotate(90deg)" : "none", transition: "transform 150ms ease" }}
+                      >
+                        <polyline points="3 1.5 7 5 3 8.5" />
+                      </svg>
+                      <span>{t("git.remoteBranches")}</span>
+                      <span className="tabular-nums">({gitBranches.remoteBranches.length})</span>
+                    </button>
+                  )}
+
+                  {remoteOpen &&
+                    gitBranches.remoteBranches.map((ref) => (
+                      <div
+                        key={ref}
+                        style={{
+                          display: "flex", alignItems: "center", gap: 6,
+                          padding: "5px 12px 5px 25px",
+                          color: "var(--text-muted)",
+                          fontSize: 11,
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        <svg width="9" height="9" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" style={{ flexShrink: 0, opacity: 0.7 }}>
+                          <circle cx="8" cy="3.5" r="2" /><circle cx="8" cy="12.5" r="2" />
+                          <path d="M8 5.5v5" />
+                        </svg>
+                        <span className="overflow-hidden text-ellipsis">{ref}</span>
+                      </div>
+                    ))}
+                </div>
               </div>
             )}
 
