@@ -5,41 +5,36 @@ import { useCallback, useEffect, useRef, useState } from "react";
 export type GitBranchesState = {
   isGit: boolean;
   current: string | null;
-  branches: string[];
-  /** Local remote-tracking refs (origin/...), sorted */
-  remoteBranches: string[];
   busy: boolean;
   error: string | null;
-  /** Switch to an existing branch; resolves false when the switch failed. */
-  switchBranch: (branch: string) => Promise<boolean>;
-  /** Create a branch and check it out; resolves false when it failed. */
-  createBranch: (name: string) => Promise<boolean>;
+  /** git fetch's summary output from the last successful fetch */
+  fetchMessage: string | null;
+  /** Runs `git fetch --prune`; resolves false when the fetch failed. */
+  fetchRemote: () => Promise<boolean>;
 };
 
 type BranchesResponse = {
   isGitRepo?: boolean;
   current?: string | null;
-  branches?: string[];
-  remoteBranches?: string[];
   error?: string;
+  message?: string;
 };
 
 /**
- * Tracks the Git branch of the given project directory and exposes
- * switch/create operations. Failed operations surface git's stderr through
- * `error` (cleared on the next attempt).
+ * Tracks the Git branch of the given project directory and exposes a
+ * remote-fetch operation. Failures surface git's stderr through `error`
+ * (cleared on the next attempt).
  */
 export function useGitBranches(
   cwd: string | null,
-  options: { onBranchChanged?: (cwd: string) => void } = {}
+  options: { onFetched?: (cwd: string) => void } = {}
 ): GitBranchesState {
-  const { onBranchChanged } = options;
+  const { onFetched } = options;
   const [isGit, setIsGit] = useState(false);
   const [current, setCurrent] = useState<string | null>(null);
-  const [branches, setBranches] = useState<string[]>([]);
-  const [remoteBranches, setRemoteBranches] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [fetchMessage, setFetchMessage] = useState<string | null>(null);
   const requestSeq = useRef(0);
 
   useEffect(() => {
@@ -48,8 +43,6 @@ export function useGitBranches(
     if (!cwd) {
       setIsGit(false);
       setCurrent(null);
-      setBranches([]);
-      setRemoteBranches([]);
       return;
     }
     fetch(`/api/git/branches?cwd=${encodeURIComponent(cwd)}`)
@@ -59,65 +52,47 @@ export function useGitBranches(
         if (d.error) {
           setIsGit(false);
           setCurrent(null);
-          setBranches([]);
-          setRemoteBranches([]);
           setError(d.error);
           return;
         }
         setIsGit(Boolean(d.isGitRepo));
         setCurrent(d.current ?? null);
-        setBranches(d.branches ?? []);
-        setRemoteBranches(d.remoteBranches ?? []);
       })
       .catch(() => {
         if (requestSeq.current !== seq) return;
         setIsGit(false);
         setCurrent(null);
-        setBranches([]);
-        setRemoteBranches([]);
       });
   }, [cwd]);
 
-  const mutate = useCallback(
-    async (action: "checkout" | "create", branch: string) => {
-      if (!cwd || !branch.trim()) return false;
-      setBusy(true);
-      setError(null);
-      try {
-        const res = await fetch("/api/git/branches", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ cwd, action, branch }),
-        });
-        const d = (await res.json()) as BranchesResponse;
-        if (!res.ok) {
-          setError(d.error ?? `HTTP ${res.status}`);
-          return false;
-        }
-        setIsGit(Boolean(d.isGitRepo));
-        setCurrent(d.current ?? null);
-        setBranches(d.branches ?? []);
-        setRemoteBranches(d.remoteBranches ?? []);
-        onBranchChanged?.(cwd);
-        return true;
-      } catch (e) {
-        setError(e instanceof Error ? e.message : String(e));
+  const fetchRemote = useCallback(async () => {
+    if (!cwd) return false;
+    setBusy(true);
+    setError(null);
+    setFetchMessage(null);
+    try {
+      const res = await fetch("/api/git/branches", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cwd }),
+      });
+      const d = (await res.json()) as BranchesResponse;
+      if (!res.ok) {
+        setError(d.error ?? `HTTP ${res.status}`);
         return false;
-      } finally {
-        setBusy(false);
       }
-    },
-    [cwd, onBranchChanged]
-  );
+      setIsGit(Boolean(d.isGitRepo));
+      setCurrent(d.current ?? null);
+      setFetchMessage(d.message ?? "");
+      onFetched?.(cwd);
+      return true;
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+      return false;
+    } finally {
+      setBusy(false);
+    }
+  }, [cwd, onFetched]);
 
-  const switchBranch = useCallback(
-    (branch: string) => mutate("checkout", branch),
-    [mutate]
-  );
-  const createBranch = useCallback(
-    (name: string) => mutate("create", name),
-    [mutate]
-  );
-
-  return { isGit, current, branches, remoteBranches, busy, error, switchBranch, createBranch };
+  return { isGit, current, busy, error, fetchMessage, fetchRemote };
 }

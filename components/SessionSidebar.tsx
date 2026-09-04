@@ -58,10 +58,10 @@ export function SessionSidebar({
   const [projectsOpen, setProjectsOpen] = useState(true);
   const [explorerKey, setExplorerKey] = useState(0);
 
-  // Git branch of the selected project; switching branches changes the files
-  // on disk, so the file explorer is refreshed afterwards.
+  // Git branch of the selected project; fetching updates the remote-tracking
+  // refs, so the file explorer is refreshed afterwards as well.
   const gitBranches = useGitBranches(selectedCwd, {
-    onBranchChanged: useCallback(() => setExplorerKey((k) => k + 1), []),
+    onFetched: useCallback(() => setExplorerKey((k) => k + 1), []),
   });
   const [sessionRefreshDone, setSessionRefreshDone] = useState(false);
   const [explorerRefreshDone, setExplorerRefreshDone] = useState(false);
