@@ -6,6 +6,8 @@ export type GitBranchesState = {
   isGit: boolean;
   current: string | null;
   branches: string[];
+  /** Local remote-tracking refs (origin/...), sorted */
+  remoteBranches: string[];
   busy: boolean;
   error: string | null;
   /** Switch to an existing branch; resolves false when the switch failed. */
@@ -18,6 +20,7 @@ type BranchesResponse = {
   isGitRepo?: boolean;
   current?: string | null;
   branches?: string[];
+  remoteBranches?: string[];
   error?: string;
 };
 
@@ -34,6 +37,7 @@ export function useGitBranches(
   const [isGit, setIsGit] = useState(false);
   const [current, setCurrent] = useState<string | null>(null);
   const [branches, setBranches] = useState<string[]>([]);
+  const [remoteBranches, setRemoteBranches] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const requestSeq = useRef(0);
@@ -45,6 +49,7 @@ export function useGitBranches(
       setIsGit(false);
       setCurrent(null);
       setBranches([]);
+      setRemoteBranches([]);
       return;
     }
     fetch(`/api/git/branches?cwd=${encodeURIComponent(cwd)}`)
@@ -55,18 +60,21 @@ export function useGitBranches(
           setIsGit(false);
           setCurrent(null);
           setBranches([]);
+          setRemoteBranches([]);
           setError(d.error);
           return;
         }
         setIsGit(Boolean(d.isGitRepo));
         setCurrent(d.current ?? null);
         setBranches(d.branches ?? []);
+        setRemoteBranches(d.remoteBranches ?? []);
       })
       .catch(() => {
         if (requestSeq.current !== seq) return;
         setIsGit(false);
         setCurrent(null);
         setBranches([]);
+        setRemoteBranches([]);
       });
   }, [cwd]);
 
@@ -89,6 +97,7 @@ export function useGitBranches(
         setIsGit(Boolean(d.isGitRepo));
         setCurrent(d.current ?? null);
         setBranches(d.branches ?? []);
+        setRemoteBranches(d.remoteBranches ?? []);
         onBranchChanged?.(cwd);
         return true;
       } catch (e) {
@@ -110,5 +119,5 @@ export function useGitBranches(
     [mutate]
   );
 
-  return { isGit, current, branches, busy, error, switchBranch, createBranch };
+  return { isGit, current, branches, remoteBranches, busy, error, switchBranch, createBranch };
 }

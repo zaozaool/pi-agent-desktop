@@ -27,6 +27,7 @@ export function ProjectTree({ cwds, selectedCwd, onSelect, renderProject, sessio
   const { t } = useI18n();
 
   const [branchMenuOpen, setBranchMenuOpen] = React.useState(false);
+  const [remoteOpen, setRemoteOpen] = React.useState(false);
   const [branchMenuRect, setBranchMenuRect] = React.useState<{ top: number; left: number } | null>(null);
   const [newBranchName, setNewBranchName] = React.useState("");
   const branchRowRef = React.useRef<HTMLDivElement | null>(null);
@@ -57,6 +58,7 @@ export function ProjectTree({ cwds, selectedCwd, onSelect, renderProject, sessio
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
     setBranchMenuRect({ top: rect.bottom + 6, left: rect.left });
     setBranchMenuOpen((v) => !v);
+    setRemoteOpen(false);
     setNewBranchName("");
   };
 
@@ -236,6 +238,56 @@ export function ProjectTree({ cwds, selectedCwd, onSelect, renderProject, sessio
                       </button>
                     );
                   })}
+
+                  {gitBranches.remoteBranches.length > 0 && (
+                    <button
+                      onClick={() => setRemoteOpen((v) => !v)}
+                      aria-expanded={remoteOpen}
+                      style={{
+                        display: "flex", alignItems: "center", gap: 5,
+                        width: "100%", padding: "6px 12px",
+                        background: "none", border: "none",
+                        color: "var(--text-dim)",
+                        cursor: "pointer", fontSize: 10, textAlign: "left",
+                      }}
+                      className="hover:bg-[var(--bg-hover)] transition-colors duration-150"
+                    >
+                      <svg
+                        width="8" height="8" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.8"
+                        strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, transform: remoteOpen ? "rotate(90deg)" : "none", transition: "transform 150ms ease" }}
+                      >
+                        <polyline points="3 1.5 7 5 3 8.5" />
+                      </svg>
+                      <span>{t("git.remoteBranches")}</span>
+                      <span className="tabular-nums">({gitBranches.remoteBranches.length})</span>
+                    </button>
+                  )}
+
+                  {remoteOpen &&
+                    gitBranches.remoteBranches.map((ref) => (
+                      <button
+                        key={ref}
+                        onClick={() => handleSwitchBranch(ref)}
+                        disabled={gitBranches.busy}
+                        title={t("git.checkoutRemoteHint")}
+                        style={{
+                          display: "flex", alignItems: "center", gap: 6,
+                          width: "100%", padding: "5px 12px 5px 25px",
+                          background: "none", border: "none",
+                          color: "var(--text-muted)",
+                          cursor: gitBranches.busy ? "wait" : "pointer",
+                          fontSize: 11, textAlign: "left",
+                          whiteSpace: "nowrap",
+                        }}
+                        className="hover:bg-[var(--bg-hover)] transition-colors duration-150"
+                      >
+                        <svg width="9" height="9" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" style={{ flexShrink: 0, opacity: 0.7 }}>
+                          <circle cx="8" cy="3.5" r="2" /><circle cx="8" cy="12.5" r="2" />
+                          <path d="M8 5.5v5" />
+                        </svg>
+                        <span className="overflow-hidden text-ellipsis">{ref}</span>
+                      </button>
+                    ))}
                 </div>
                 <div style={{ borderTop: "1px solid var(--border)" }} className="p-1.5">
                   <div className="flex items-center gap-1">

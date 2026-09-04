@@ -4,6 +4,7 @@ import { isPathAllowedAsync } from "@/lib/allowed-roots";
 import {
   GitBranchError,
   checkoutGitBranch,
+  checkoutRemoteBranch,
   createGitBranch,
   listGitBranches,
 } from "@/lib/git-branches";
@@ -65,7 +66,19 @@ export async function POST(req: Request) {
     if (body.action === "create") {
       await createGitBranch(cwd, branch, { checkout: true });
     } else {
-      await checkoutGitBranch(cwd, branch);
+      // Dispatch on the ref's shape: a known local branch gets a plain
+      // checkout, a remote-tracking ref gets a tracking branch created.
+      const info = await listGitBranches(cwd);
+      if (info.branches.includes(branch)) {
+        await checkoutGitBranch(cwd, branch);
+      } else if (info.remoteBranches.includes(branch)) {
+        await checkoutRemoteBranch(cwd, branch);
+      } else {
+        return NextResponse.json(
+          { error: `Unknown branch: ${branch}`, code: "UNKNOWN_BRANCH" },
+          { status: 409 }
+        );
+      }
     }
     const info = await listGitBranches(cwd);
     return NextResponse.json(info);
