@@ -39,8 +39,7 @@
     "dist:mac": "npm run build:standalone && npm run build:electron && node scripts/electron-builder-mac.mjs --publish never && node scripts/smoke-packaged-standalone.mjs",
     "dist:mac:universal": "MAC_ARCH=universal npm run dist:mac",
     "dist:mac:arm64": "MAC_ARCH=arm64 npm run dist:mac",
-    "dist:mac:x64": "MAC_ARCH=x64 npm run dist:mac",
-    "dist:mac:universal": "MAC_ARCH=universal npm run dist:mac"
+    "dist:mac:x64": "MAC_ARCH=x64 npm run dist:mac"
   },
   "build": {
     "extends": "electron-builder.yml"
