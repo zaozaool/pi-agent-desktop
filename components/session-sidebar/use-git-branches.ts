@@ -43,6 +43,12 @@ export function useGitBranches(
   const [error, setError] = useState<string | null>(null);
   const [fetchMessage, setFetchMessage] = useState<string | null>(null);
   const requestSeq = useRef(0);
+  // Latest selected cwd; lets an in-flight fetch abandon its result when the
+  // user has already switched to another project.
+  const cwdRef = useRef<string | null>(cwd);
+  useEffect(() => {
+    cwdRef.current = cwd;
+  }, [cwd]);
 
   useEffect(() => {
     const seq = ++requestSeq.current;
@@ -81,9 +87,10 @@ export function useGitBranches(
   }, [cwd]);
 
   const fetchRemote = useCallback(async () => {
+    const target = cwdRef.current;
     // Non-git directories have no fetch button rendered; guard here too so a
     // stale call never runs git fetch or surfaces an error for them.
-    if (!cwd || !isGit) return false;
+    if (!target || !isGit) return false;
     setBusy(true);
     setError(null);
     setFetchMessage(null);
@@ -91,9 +98,11 @@ export function useGitBranches(
       const res = await fetch("/api/git/branches", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ cwd }),
+        body: JSON.stringify({ cwd: target }),
       });
       const d = (await res.json()) as BranchesResponse;
+      // Discard silently when the user switched projects mid-flight.
+      if (cwdRef.current !== target) return false;
       if (!res.ok) {
         setError(d.error ?? `HTTP ${res.status}`);
         return false;
@@ -103,15 +112,16 @@ export function useGitBranches(
       setBranches(d.branches ?? []);
       setRemoteBranches(d.remoteBranches ?? []);
       setFetchMessage(d.message ?? "");
-      onFetched?.(cwd);
+      onFetched?.(target);
       return true;
     } catch (e) {
+      if (cwdRef.current !== target) return false;
       setError(e instanceof Error ? e.message : String(e));
       return false;
     } finally {
       setBusy(false);
     }
-  }, [cwd, isGit, onFetched]);
+  }, [isGit, onFetched]);
 
   return { isGit, current, branches, remoteBranches, busy, error, fetchMessage, fetchRemote };
 }

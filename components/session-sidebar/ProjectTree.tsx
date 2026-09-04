@@ -209,7 +209,7 @@ export function ProjectTree({ cwds, selectedCwd, onSelect, renderProject, sessio
               </div>
             )}
 
-            {isSelected && gitBranches?.error && (
+            {isSelected && gitBranches?.isGit && gitBranches.error && (
               <div
                 className="px-2.5 pb-1.5 text-[10px] break-all"
                 style={{ color: "var(--danger)", marginLeft: 12 }}
