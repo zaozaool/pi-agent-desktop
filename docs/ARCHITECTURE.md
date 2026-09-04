@@ -364,16 +364,19 @@ stateDiagram-v2
     Destroyed --> [*]
 ```
 
-**六个必须存 `globalThis` 的原因**（Next.js HMR 会丢弃模块级变量）：
+**进程级状态必须存 `globalThis`**（Next.js HMR 会丢弃模块级变量）：
 
 | 全局变量 | 用途 | 定义位置 | 回收策略 |
 |---|---|---|---|
 | `globalThis.__piSessions` | `Map<sessionId, AgentSessionWrapper>` 活跃会话注册表 | [lib/rpc-manager.ts](../lib/rpc-manager.ts) | wrapper.destroy() 时 delete；process.once("exit") 全清 |
-| `globalThis.__piSessionPathCache` | `sessionId → .jsonl` 绝对路径缓存 | [lib/session-reader.ts](../lib/session-reader.ts) | invalidateSessionPathCache(id) 单条删；fork 失败 / DELETE 后主动清 |
+| `globalThis.__piSessionOnlyTrust` | `Map<sessionId, boolean>` 会话级信任状态 | [lib/rpc-manager.ts](../lib/rpc-manager.ts) | 会话信任完成或测试 reset 时清理 |
+| `globalThis.__piSessionPathCacheState` | `sessionId → .jsonl` 路径与 miss 缓存 | [lib/session-reader.ts](../lib/session-reader.ts) | invalidateSessionPathEntry(id) 单条删；TTL 自动过期 |
 | `globalThis.__piStartLocks` | `Map<sessionId, Promise>` 并发启动共享锁 | [lib/rpc-manager.ts](../lib/rpc-manager.ts) | startRpcSession finally 块自动清 |
 | `globalThis.__piWriteLocks` | `Map<filePath, Promise>` per-file 写入锁 | [lib/session-lock.ts](../lib/session-lock.ts) | withFileLock finally 块自动清 |
 | `globalThis.__piAllowedRootsCache` | `{ roots: Set<string>; expiresAt: number }` 文件访问白名单缓存（见 §14.11） | [lib/allowed-roots.ts](../lib/allowed-roots.ts) | 5s TTL 自动过期；POST /api/agent/new 时主动 add |
 | `globalThis.__piLtmService` | 长期记忆 `MemoryService` 单例 | [lib/ltm/service.ts](../lib/ltm/service.ts) | 配置 key 变化时重建；测试可显式 reset |
+| `globalThis.__piLoginCallbacks` | OAuth 手动输入回调注册表 | [app/api/auth/login/[provider]/route.ts](../app/api/auth/login/[provider]/route.ts) | 登录完成、取消或流结束时删除 token |
+| `globalThis.__piGitWorktreeLocks` | Worktree 创建/清理的进程内锁 | [lib/git-worktree.ts](../lib/git-worktree.ts) | 操作完成后释放；键值为空时删除 |
 
 **Fork 注册顺序陷阱**（详见 §14.2）：fork 在**文件层**通过 `SessionManager.createBranchedSession()`（或首条消息前的 `SessionManager.create()`）完成，**不修改旧 wrapper 内部状态**。但 `send("fork")` 仍需先 `startRpcSession(newSessionId, ...)` 预注册新 wrapper，再 `this.destroy()` 旧 wrapper，以满足"返回时 newSessionId 已在注册表"的契约。
 
@@ -390,6 +393,12 @@ Pi 有两种独立的分支机制，**不要混淆**：
 - 侧边栏树状显示为父会话的子节点
 - 触发位置：用户消息上的 Fork 按钮
 - API：`POST /api/agent/[id]` body `{ type:"fork", entryId }`
+
+### Clone 工作区（跨目录）
+
+`POST /api/sessions/[id]/clone` 默认创建普通目录 Clone；传入 `workspaceMode: "worktree"` 时，要求源 `cwd` 位于 Git 仓库中，并在仓库外的不存在目标路径创建一个新的 Git worktree。可选 `branchName` 指定分支名；未指定时由服务端生成。成功响应的 `workspace` 会返回 `mode`、`cwd`，Worktree 还会返回 `branchName`。
+
+Worktree 创建使用 `git worktree add --no-checkout` 后显式 checkout，并记录 worktree 的 `gitDir`、`HEAD` 与分支身份。目标路径、分支和身份校验失败时会拒绝操作；Clone/fork 失败时只清理已证明属于本次创建的资源。
 
 ### 会话内分支（同文件分支）
 
@@ -554,7 +563,7 @@ components/models-config/     模型配置弹窗的子组件
 | `app/api/sessions/[id]/route.ts` | GET / PATCH / DELETE | 读取 / 重命名 / 删除 |
 | `app/api/sessions/[id]/context/route.ts` | GET | `?leafId=` 返回指定分支叶子的上下文 |
 | `app/api/sessions/[id]/branch/route.ts` | POST | 从指定 entryId 节点创建分叉新会话 (.jsonl) |
-| `app/api/sessions/[id]/clone/route.ts` | POST | 全量复制/Fork 会话至目标 cwd 目录 |
+| `app/api/sessions/[id]/clone/route.ts` | POST | 全量 Clone 会话至普通目录或 Git Worktree |
 | `app/api/sessions/[id]/export/route.ts` | GET | 导出会话为独立 HTML 或 Markdown 文件 |
 | `app/api/sessions/new/route.ts` | — | 已弃用，返回 410 |
 
@@ -673,7 +682,7 @@ resources/
 
 Next.js 热重载（HMR）会丢弃模块级变量。若把 `Map<sessionId, AgentSessionWrapper>` 放在模块顶层，每次 HMR 后所有活跃 session 都会丢失。
 
-**解决**：存到五个 globalThis 变量（详见 §7 表格）：`globalThis.__piSessions`、`globalThis.__piSessionPathCache`、`globalThis.__piStartLocks`、`globalThis.__piWriteLocks`、`globalThis.__piAllowedRootsCache`。
+**解决**：将这些进程级状态存到 `globalThis`（详见 §7 表格），包括会话注册/信任、路径缓存、并发锁、文件访问缓存、LTM、OAuth 回调和 Git Worktree 锁。
 
 ### 14.2 Fork 的执行顺序：预注册 → 销毁旧 wrapper
 
@@ -702,7 +711,7 @@ Pi SDK 存储格式 `{ id, name, arguments }` 与前端类型 `{ toolCallId, too
 
 ### 14.4 两种分支机制不要混淆
 
-见 §8。**Fork = 跨文件**，**会话内分支 = 同文件**，分别由不同 UI 入口和不同 API 触发。
+见 §8。**Fork / Branch = 跨文件**，**会话内分支 = 同文件**，**Git Worktree Clone = Git 仓库外的新工作区和分支**，分别由不同 UI 入口和不同 API 触发。Worktree 清理必须先确认目标路径、分支、HEAD 与 linked worktree 的 `gitDir` 身份一致；身份无法证明时应 fail closed，避免删除外部资源。
 
 ### 14.5 SSE 而非 WebSocket
 
@@ -913,14 +922,14 @@ Issue #20「对话进行当中突然白屏」的调研（[docs/research/issue-20
 
 ### Wave 2: MCP / 会话分支与导出 / 扩展管理 UI（已完成）
 - **MCP 服务器配置与管理 UI**：支持全局与项目级 `mcp.json` 的读写、开启/禁用、测试连通性与工具数查看。
-- **会话 Branching & Cloning**：支持从指定节点分叉 Session Branch 以及将 Session 全量 Clone 至新目录。
+- **会话 Branching & Cloning**：支持从指定节点分叉 Session Branch，以及将 Session 全量 Clone 至普通目录或 Git Worktree。
 - **会话导出 (HTML / Markdown)**：一键导出会话内容为原生 HTML 或 Markdown。
 - **AgentMode `.jsonl` 持久化**：写入 `desktop_agent_mode` 自定义节点并在加载时自后向前恢复历史模式。
 - **扩展与 Skill 统一管理**：Tab 化管理已配置的 Extensions、Skills 与 MCP 服务。
 
 ### 后续规划
 - **操作系统级沙盒隔离**：Docker / OS 容器沙盒执行隔离。
-- **多 Agent 协作与 Worktree**：支持独立 Worktree 分支与多 Agent 并行处理。
+- **多 Agent 协作**：在现有会话与 Worktree 基础上支持多 Agent 并行处理。
 
 ## 附录：相关文档
 
