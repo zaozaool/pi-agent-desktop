@@ -6,6 +6,7 @@ import { FileExplorer } from "./FileExplorer";
 import { SidebarHeader } from "./session-sidebar/SidebarHeader";
 import { SessionTreeItem } from "./session-sidebar/SessionTree";
 import { ProjectTree } from "./session-sidebar/ProjectTree";
+import { useGitBranches } from "./session-sidebar/use-git-branches";
 import { buildSessionTree, getAllCwds, getRecentCwds, pickDirectoryFromHost, sortCwdsAlphabetically } from "./session-sidebar/helpers";
 import { resolveCustomPathSelection } from "@/lib/custom-path-selection";
 import { useI18n } from "./I18nProvider";
@@ -56,6 +57,12 @@ export function SessionSidebar({
   const [explorerOpen, setExplorerOpen] = useState(false);
   const [projectsOpen, setProjectsOpen] = useState(true);
   const [explorerKey, setExplorerKey] = useState(0);
+
+  // Git branch of the selected project; switching branches changes the files
+  // on disk, so the file explorer is refreshed afterwards.
+  const gitBranches = useGitBranches(selectedCwd, {
+    onBranchChanged: useCallback(() => setExplorerKey((k) => k + 1), []),
+  });
   const [sessionRefreshDone, setSessionRefreshDone] = useState(false);
   const [explorerRefreshDone, setExplorerRefreshDone] = useState(false);
   const [openingProject, setOpeningProject] = useState(false);
@@ -388,6 +395,7 @@ export function SessionSidebar({
           sessionCounts={sessionCounts}
           expanded={expandedProjects}
           onExpandedChange={setExpandedProjects}
+          gitBranches={gitBranches}
         />
 
         {/* List footer actions (restored from the old project dropdown) */}

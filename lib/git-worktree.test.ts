@@ -23,6 +23,12 @@ import {
 } from "./git-worktree.ts";
 
 const fixturePath = (path: string) => resolve(path);
+
+/**
+ * Real directories the code under test touches are rooted in the system temp
+ * dir — /workspace is writable in the Linux CI image but not on macOS hosts.
+ */
+const scratchPath = (name: string) => join(mkdtempSync(join(tmpdir(), "pi-worktree-test-")), name);
 const identityRealpath = (path: string) => path;
 const fakeWorktreeIdentity = {
   gitDir: fixturePath("/workspace/project/.git/worktrees/test"),
@@ -243,7 +249,7 @@ test("createGitWorktree rejects an identity change after checkout", async () => 
 });
 
 test("createGitWorktree rejects an ownership marker change after checkout", async () => {
-  const ownerGitDir = fixturePath(`/workspace/marker-race-${randomUUID()}`);
+  const ownerGitDir = scratchPath(`marker-race-${randomUUID()}`);
   const ownerMarkerPath = join(ownerGitDir, "pi-agent-desktop-worktree-owner");
   mkdirSync(ownerGitDir, { recursive: true });
   let operationCalled = false;
@@ -401,9 +407,9 @@ test("createGitWorktree does not clean up unowned resources after add fails", as
 });
 
 test("createGitWorktree leaves the branch after unidentified cleanup", async () => {
-  const repoRoot = fixturePath(`/workspace/unidentified-cleanup-${randomUUID()}`);
-  const targetCwd = fixturePath(`/workspace/unidentified-target-${randomUUID()}`);
-  const ownerGitDir = fixturePath(`/workspace/unidentified-gitdir-${randomUUID()}`);
+  const repoRoot = scratchPath(`unidentified-cleanup-${randomUUID()}`);
+  const targetCwd = scratchPath(`unidentified-target-${randomUUID()}`);
+  const ownerGitDir = scratchPath(`unidentified-gitdir-${randomUUID()}`);
   mkdirSync(ownerGitDir, { recursive: true });
   const calls: string[][] = [];
   let listCalls = 0;

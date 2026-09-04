@@ -3,6 +3,7 @@
 import React from "react";
 import { openDirectoryInFileManager, pathBasename } from "./helpers";
 import { useI18n } from "../I18nProvider";
+import type { GitBranchesState } from "./use-git-branches";
 
 interface ProjectTreeProps {
   /** All project directories, most recently active first */
@@ -17,11 +18,66 @@ interface ProjectTreeProps {
   /** Controlled set of expanded project cwds */
   expanded: Set<string>;
   onExpandedChange: (next: Set<string>) => void;
+  /** Git branch state for the selected project (see useGitBranches) */
+  gitBranches?: GitBranchesState;
 }
 
-export function ProjectTree({ cwds, selectedCwd, onSelect, renderProject, sessionCounts, expanded, onExpandedChange }: ProjectTreeProps) {
+export function ProjectTree({ cwds, selectedCwd, onSelect, renderProject, sessionCounts, expanded, onExpandedChange, gitBranches }: ProjectTreeProps) {
   const [openError, setOpenError] = React.useState<string | null>(null);
   const { t } = useI18n();
+
+  const [branchMenuOpen, setBranchMenuOpen] = React.useState(false);
+  const [branchMenuRect, setBranchMenuRect] = React.useState<{ top: number; left: number } | null>(null);
+  const [newBranchName, setNewBranchName] = React.useState("");
+  const branchRowRef = React.useRef<HTMLDivElement | null>(null);
+  const branchPanelRef = React.useRef<HTMLDivElement | null>(null);
+  const newBranchInputRef = React.useRef<HTMLInputElement | null>(null);
+
+  React.useEffect(() => {
+    if (!branchMenuOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (
+        branchRowRef.current && !branchRowRef.current.contains(e.target as Node) &&
+        branchPanelRef.current && !branchPanelRef.current.contains(e.target as Node)
+      ) {
+        setBranchMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [branchMenuOpen]);
+
+  // Close the panel and reset the inline form whenever the selection changes
+  React.useEffect(() => {
+    setBranchMenuOpen(false);
+    setNewBranchName("");
+  }, [selectedCwd]);
+
+  const openBranchMenu = (e: React.MouseEvent) => {
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    setBranchMenuRect({ top: rect.bottom + 6, left: rect.left });
+    setBranchMenuOpen((v) => !v);
+    setNewBranchName("");
+  };
+
+  const handleSwitchBranch = async (branch: string) => {
+    if (!gitBranches || branch === gitBranches.current) {
+      setBranchMenuOpen(false);
+      return;
+    }
+    const ok = await gitBranches.switchBranch(branch);
+    if (ok) setBranchMenuOpen(false);
+  };
+
+  const handleCreateBranch = async () => {
+    if (!gitBranches || !newBranchName.trim()) return;
+    const ok = await gitBranches.createBranch(newBranchName);
+    if (ok) {
+      setNewBranchName("");
+      setBranchMenuOpen(false);
+      newBranchInputRef.current = null;
+    }
+  };
 
   const toggle = (cwd: string) => {
     const next = new Set(expanded);
@@ -75,6 +131,30 @@ export function ProjectTree({ cwds, selectedCwd, onSelect, renderProject, sessio
 
               <span className="flex-1 overflow-hidden text-ellipsis whitespace-nowrap py-[6px]">{pathBasename(cwd)}</span>
 
+              {isSelected && gitBranches?.isGit && gitBranches.current && (
+                <div ref={branchRowRef} className="shrink-0 relative">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      openBranchMenu(e);
+                    }}
+                    aria-label={t("git.switchBranch")}
+                    title={t("git.switchBranch")}
+                    className={`flex items-center gap-[3px] max-w-[110px] h-[16px] px-[5px] bg-transparent border border-[var(--border)] rounded-full text-[9px] font-mono cursor-pointer transition-colors duration-150 ${
+                      branchMenuOpen
+                        ? "text-text bg-bg-hover"
+                        : "text-text-dim hover:text-text hover:bg-bg-hover"
+                    }`}
+                  >
+                    <svg width="8" height="8" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" style={{ flexShrink: 0 }}>
+                      <circle cx="4" cy="4" r="2" /><circle cx="4" cy="12" r="2" /><circle cx="12" cy="8" r="2" />
+                      <path d="M4 6v4M12 10c0-2-2-2-4-2" />
+                    </svg>
+                    <span className="overflow-hidden text-ellipsis whitespace-nowrap">{gitBranches.current}</span>
+                  </button>
+                </div>
+              )}
+
               {count !== undefined && count > 0 && (
                 <span className={`shrink-0 text-[10px] tabular-nums ${isSelected ? "text-text-muted" : "text-text-dim"}`}>
                   {count}
@@ -105,6 +185,89 @@ export function ProjectTree({ cwds, selectedCwd, onSelect, renderProject, sessio
             {isSelected && openError && (
               <div className="px-2.5 pb-1.5 text-[11px]" style={{ color: "var(--danger)", marginLeft: 12 }}>
                 {openError}
+              </div>
+            )}
+
+            {isSelected && branchMenuOpen && branchMenuRect && gitBranches && (
+              <div
+                ref={branchPanelRef}
+                className="t-dropdown is-open material-popover"
+                data-origin="top-left"
+                style={{
+                  position: "fixed",
+                  top: branchMenuRect.top,
+                  left: branchMenuRect.left,
+                  zIndex: 500,
+                  background: "var(--material-popover)",
+                  border: "1px solid var(--border)",
+                  borderRadius: "var(--radius-panel)",
+                  boxShadow: "var(--shadow-popover)",
+                  overflow: "hidden",
+                  minWidth: 180,
+                  maxWidth: 260,
+                }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div style={{ maxHeight: 220, overflowY: "auto" }}>
+                  {gitBranches.branches.map((branch) => {
+                    const isCurrent = branch === gitBranches.current;
+                    return (
+                      <button
+                        key={branch}
+                        onClick={() => handleSwitchBranch(branch)}
+                        disabled={gitBranches.busy}
+                        style={{
+                          display: "flex", alignItems: "center", gap: 6,
+                          width: "100%", padding: "6px 12px",
+                          background: isCurrent ? "var(--bg-selected)" : "none",
+                          border: "none",
+                          color: isCurrent ? "var(--text)" : "var(--text-muted)",
+                          cursor: gitBranches.busy ? "wait" : "pointer",
+                          fontSize: 11, textAlign: "left",
+                          fontWeight: isCurrent ? 600 : 400,
+                          whiteSpace: "nowrap",
+                        }}
+                        className={isCurrent ? "" : "hover:bg-[var(--bg-hover)] transition-colors duration-150"}
+                      >
+                        {isCurrent
+                          ? <svg width="9" height="9" viewBox="0 0 10 10" fill="none" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><polyline points="1.5 5 4 7.5 8.5 2.5" /></svg>
+                          : <span style={{ width: 9, flexShrink: 0 }} />}
+                        <span className="overflow-hidden text-ellipsis">{branch}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+                <div style={{ borderTop: "1px solid var(--border)" }} className="p-1.5">
+                  <div className="flex items-center gap-1">
+                    <input
+                      ref={newBranchInputRef}
+                      value={newBranchName}
+                      onChange={(e) => setNewBranchName(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") handleCreateBranch();
+                        if (e.key === "Escape") setBranchMenuOpen(false);
+                      }}
+                      placeholder={t("git.newBranchPlaceholder")}
+                      className="flex-1 min-w-0 text-[11px] font-mono px-1.5 py-[3px] bg-transparent border border-[var(--border)] rounded-[4px] text-text outline-none focus:border-[var(--accent)]"
+                    />
+                    <button
+                      onClick={handleCreateBranch}
+                      disabled={gitBranches.busy || !newBranchName.trim()}
+                      aria-label={t("git.createBranch")}
+                      title={t("git.createBranch")}
+                      className="shrink-0 flex items-center justify-center w-[22px] h-[22px] p-0 bg-transparent border-none rounded-[4px] text-text-dim hover:text-text hover:bg-bg-hover disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors duration-150"
+                    >
+                      <svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
+                        <line x1="6" y1="1.5" x2="6" y2="10.5" /><line x1="1.5" y1="6" x2="10.5" y2="6" />
+                      </svg>
+                    </button>
+                  </div>
+                  {gitBranches.error && (
+                    <div className="pt-1 px-0.5 text-[10px] break-all" style={{ color: "var(--danger)" }} title={gitBranches.error}>
+                      {t("git.branchError")}
+                    </div>
+                  )}
+                </div>
               </div>
             )}
 
