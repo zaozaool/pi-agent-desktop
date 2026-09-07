@@ -5,6 +5,7 @@ import type { SessionInfo } from "@/lib/types";
 import { FileExplorer } from "./FileExplorer";
 import { SidebarHeader } from "./session-sidebar/SidebarHeader";
 import { SessionTreeItem } from "./session-sidebar/SessionTree";
+import { useRunningSessions } from "./session-sidebar/use-running-sessions";
 import { ProjectTree } from "./session-sidebar/ProjectTree";
 import { useGitBranches } from "./session-sidebar/use-git-branches";
 import { buildSessionTree, getAllCwds, getRecentCwds, pickDirectoryFromHost, sortCwdsAlphabetically } from "./session-sidebar/helpers";
@@ -58,6 +59,10 @@ export function SessionSidebar({
   const [explorerOpen, setExplorerOpen] = useState(false);
   const [projectsOpen, setProjectsOpen] = useState(true);
   const [explorerKey, setExplorerKey] = useState(0);
+
+  // Sessions whose agent loop is currently running (polled), so a spinner
+  // keeps showing on background sessions after switching away.
+  const runningSessionIds = useRunningSessions();
 
   // Git branch of the selected project; fetching updates the remote-tracking
   // refs, so the file explorer is refreshed afterwards as well.
@@ -244,6 +249,7 @@ export function SessionSidebar({
               onCloneSession={onCloneSession}
               onExportSession={onExportSession}
               depth={0}
+              runningIds={runningSessionIds}
             />
           ))}
         </div>

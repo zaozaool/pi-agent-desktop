@@ -156,6 +156,15 @@ export class AgentSessionWrapper {
     return this.inner.sessionId;
   }
 
+  /** True while the agent loop is actively processing a turn. */
+  get isStreaming(): boolean {
+    try {
+      return this.inner.isStreaming;
+    } catch {
+      return false;
+    }
+  }
+
   get sessionFile(): string {
     return this.inner.sessionFile ?? "";
   }
@@ -751,6 +760,15 @@ function getLocks(): Map<string, Promise<{ session: AgentSessionWrapper; realSes
 
 export function getRpcSession(sessionId: string): AgentSessionWrapper | undefined {
   return getRegistry().get(sessionId);
+}
+
+/** Ids of live sessions whose agent loop is currently running. */
+export function getRunningSessionIds(): string[] {
+  const running: string[] = [];
+  getRegistry().forEach((wrapper, id) => {
+    if (wrapper.isAlive() && wrapper.isStreaming) running.push(id);
+  });
+  return running;
 }
 
 /**

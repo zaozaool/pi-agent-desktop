@@ -16,6 +16,7 @@ interface SessionTreeItemProps {
   onCloneSession?: (s: SessionInfo) => void;
   onExportSession?: (s: SessionInfo) => void;
   depth: number;
+  runningIds?: Set<string>;
 }
 
 export function SessionTreeItem({
@@ -28,6 +29,7 @@ export function SessionTreeItem({
   onCloneSession,
   onExportSession,
   depth,
+  runningIds,
 }: SessionTreeItemProps) {
   const [collapsed, setCollapsed] = useState(false);
   const hasChildren = node.children.length > 0;
@@ -57,6 +59,7 @@ export function SessionTreeItem({
           hasChildren={hasChildren}
           collapsed={collapsed}
           onToggleCollapse={() => setCollapsed((v) => !v)}
+          isRunning={runningIds?.has(node.session.id) ?? false}
         />
       </div>
       {hasChildren && (
@@ -78,6 +81,7 @@ export function SessionTreeItem({
                 onCloneSession={onCloneSession}
                 onExportSession={onExportSession}
                 depth={depth + 1}
+                runningIds={runningIds}
               />
             ))}
           </div>
@@ -100,6 +104,7 @@ interface SessionItemProps {
   hasChildren?: boolean;
   collapsed?: boolean;
   onToggleCollapse?: () => void;
+  isRunning?: boolean;
 }
 
 function SessionItem({
@@ -115,6 +120,7 @@ function SessionItem({
   hasChildren = false,
   collapsed = false,
   onToggleCollapse,
+  isRunning = false,
 }: SessionItemProps) {
   const { locale, t } = useI18n();
   const [hovered, setHovered] = useState(false);
@@ -294,6 +300,22 @@ function SessionItem({
               <span>{t("common.messages", { count: session.messageCount })}</span>
             </div>
           </div>
+
+          {/* Agent running indicator — independent of selection, so background
+              sessions keep spinning while the user views another one */}
+          {isRunning && (
+            <span title={t("sidebar.agentRunning")} className="shrink-0 flex items-center">
+              <svg
+                width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="var(--accent)" strokeWidth="1.8" strokeLinecap="round"
+                className="animate-spin"
+                style={{ transformOrigin: "center" }}
+                role="status"
+                aria-label={t("sidebar.agentRunning")}
+              >
+                <path d="M14 8a6 6 0 1 1-2-4.47" />
+              </svg>
+            </span>
+          )}
 
           {/* Collapse toggle — always visible when has children */}
           {hasChildren && (
