@@ -10,6 +10,7 @@ import { useGitBranches } from "./session-sidebar/use-git-branches";
 import { buildSessionTree, getAllCwds, getRecentCwds, pickDirectoryFromHost, sortCwdsAlphabetically } from "./session-sidebar/helpers";
 import { resolveCustomPathSelection } from "@/lib/custom-path-selection";
 import { useI18n } from "./I18nProvider";
+import { apiJson } from "./apiJson";
 
 type ProjectSortMode = "recent" | "alpha";
 const PROJECT_SORT_STORAGE_KEY = "pi.sidebar.projectSort";
@@ -95,9 +96,11 @@ export function SessionSidebar({
   const loadSessions = useCallback(async (showLoading = false) => {
     try {
       if (showLoading) setLoading(true);
-      const res = await fetch("/api/sessions");
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = (await res.json()) as { sessions: SessionInfo[] };
+      const data = await apiJson<{ sessions: SessionInfo[] }>(
+        "/api/sessions",
+        undefined,
+        { fallback: t("common.failed") },
+      );
       setAllSessions(data.sessions);
       setError(null);
       if (!showLoading) {
@@ -106,11 +109,11 @@ export function SessionSidebar({
         sessionRefreshTimerRef.current = setTimeout(() => setSessionRefreshDone(false), 2000);
       }
     } catch (e) {
-      setError(String(e));
+      setError(e instanceof Error ? e.message : t("common.failed"));
     } finally {
       if (showLoading) setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   const initialLoadDone = useRef(false);
   useEffect(() => {

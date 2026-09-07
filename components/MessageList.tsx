@@ -4,7 +4,7 @@ import { MessageView } from "./MessageView.tsx";
 
 interface MessageListProps {
   messages: AgentMessage[];
-  entryIds: string[];
+  entryIds: Array<string | undefined>;
   toolResultsMap: Map<string, ToolResultMessage>;
   nextUserIdx: number[];
   nextAssistantIdx: number[];
@@ -80,7 +80,7 @@ export const MessageList = React.memo(function MessageList({
         if (!isUserOrAssistant) return view;
         const currentRefIdx = refIdx++;
         const entryId = entryIds[idx];
-        const isSearchHit = searchMatchEntryIds?.has(entryId) ?? false;
+        const isSearchHit = entryId != null && (searchMatchEntryIds?.has(entryId) ?? false);
         const isSearchCurrent = searchCurrentEntryId != null && searchCurrentEntryId === entryId;
         return (
           <div

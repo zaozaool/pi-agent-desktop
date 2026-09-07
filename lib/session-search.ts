@@ -55,7 +55,7 @@ function countOccurrences(haystack: string, needle: string): number {
  */
 export function findSessionMatches(
   messages: AgentMessage[],
-  entryIds: string[],
+  entryIds: Array<string | undefined>,
   query: string
 ): SessionSearchMatch[] {
   const q = query.trim().toLowerCase();
