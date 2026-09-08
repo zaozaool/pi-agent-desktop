@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React from "react";
 import type { AgentMessage, ToolResultMessage } from "@/lib/types";
 import { MessageView } from "./MessageView.tsx";
 
@@ -18,7 +18,6 @@ interface MessageListProps {
   onBranchMessage?: (entryId: string) => void;
   onEditContent: (content: string) => void;
   messageRefs: React.MutableRefObject<(HTMLDivElement | null)[]>;
-  lastUserMsgRef: React.MutableRefObject<HTMLDivElement | null>;
   modelNames: Record<string, string>;
   activeAgentIndicator?: React.ReactNode;
   /** Entry ids of messages containing a search hit */
@@ -30,16 +29,9 @@ interface MessageListProps {
 export const MessageList = React.memo(function MessageList({
   messages, entryIds, toolResultsMap, nextUserIdx, nextAssistantIdx,
   isStreaming, streamingMessage, isNew, agentRunning, forkingEntryId,
-  onFork, onNavigate, onBranchMessage, onEditContent, messageRefs, lastUserMsgRef,
+  onFork, onNavigate, onBranchMessage, onEditContent, messageRefs,
   modelNames, activeAgentIndicator, searchMatchEntryIds, searchCurrentEntryId,
 }: MessageListProps) {
-  const lastUserIdx = useMemo(() => {
-    for (let i = messages.length - 1; i >= 0; i--) {
-      if (messages[i].role === "user") return i;
-    }
-    return -1;
-  }, [messages]);
-
   let refIdx = 0;
   return (
     <>
@@ -87,7 +79,6 @@ export const MessageList = React.memo(function MessageList({
             key={entryIds[idx] ?? `idx-${idx}`}
             ref={(el) => {
               messageRefs.current[currentRefIdx] = el;
-              if (idx === lastUserIdx) lastUserMsgRef.current = el;
             }}
             style={{ contentVisibility: "auto", containIntrinsicSize: "auto 150px" }}
             className={`transition-shadow duration-200 ${

@@ -63,8 +63,7 @@ export function ChatWindow({ session, newSessionCwd, onAgentEnd, onSessionCreate
     trustPrompt,
     resolveTrustPrompt,
     handleExtensionUiRespond,
-    messagesEndRef, scrollContainerRef,
-    lastUserMsgRef,
+    messagesEndRef, scrollContainerRef, setScrollContainer,
     handleSend, handleAbort, handleFork, handleNavigate, handleModelChange,
     handleCompact, handleSteer, handleFollowUp, handleAbortCompaction,
     handleReorderFollowUps,
@@ -432,7 +431,7 @@ export function ChatWindow({ session, newSessionCwd, onAgentEnd, onSessionCreate
       ) : (
       <>
       <div className="relative flex flex-1 overflow-hidden">
-        <div ref={scrollContainerRef} className="flex-1 overflow-y-auto pt-4 [scrollbar-width:none]">
+        <div ref={setScrollContainer} className="flex-1 overflow-y-auto pt-4 pb-6 [scrollbar-width:none]">
           <div className="mx-auto max-w-[1024px] px-4">
 
             <MessageList
@@ -451,7 +450,6 @@ export function ChatWindow({ session, newSessionCwd, onAgentEnd, onSessionCreate
               onBranchMessage={handleBranchMessage}
               onEditContent={handleEditContent}
               messageRefs={messageRefs}
-              lastUserMsgRef={lastUserMsgRef}
               modelNames={modelNames}
               searchMatchEntryIds={searchMatchEntryIds}
               searchCurrentEntryId={currentSearchMatch?.entryId ?? null}
@@ -459,10 +457,6 @@ export function ChatWindow({ session, newSessionCwd, onAgentEnd, onSessionCreate
                 ? <AgentThinkingOrb phase={agentPhase} thinking={activeThinking} />
                 : null}
             />
-
-            {agentRunning && (
-              <div style={{ height: scrollContainerRef.current ? scrollContainerRef.current.clientHeight : "80vh" }} />
-            )}
 
             <div ref={messagesEndRef} />
           </div>
