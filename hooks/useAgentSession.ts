@@ -83,6 +83,10 @@ export interface UseAgentSessionOptions {
     onLeafChange: (leafId: string | null) => void,
   ) => void;
   onSystemPromptChange?: (prompt: string | null) => void;
+  /** Saved scrollTop of the previous view of this session (restored on load). */
+  initialScrollTop?: number | null;
+  /** Called with the chat container's scrollTop as it changes. */
+  onScrollSave?: (scrollTop: number) => void;
 }
 
 export function useAgentSession(opts: UseAgentSessionOptions) {
@@ -96,6 +100,8 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
     modelsRefreshKey,
     onBranchDataChange,
     onSystemPromptChange,
+    initialScrollTop,
+    onScrollSave,
   } = opts;
 
   const isNew = session === null && newSessionCwd !== null;
@@ -249,6 +255,8 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
     messageCount: messages.length,
     agentRunning,
     streamingMessage: streamState.streamingMessage,
+    initialScrollTop,
+    onScrollSave,
   });
 
   const sessionIdRef = useRef<string | null>(session?.id ?? null);

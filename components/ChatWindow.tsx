@@ -35,9 +35,13 @@ interface Props {
   initialDraft?: string;
   /** Called whenever the input draft changes (also cleared after send). */
   onDraftChange?: (text: string) => void;
+  /** Saved scrollTop of the previous view of this session (restored on load). */
+  initialScrollTop?: number | null;
+  /** Called with the chat container's scrollTop as it changes. */
+  onScrollSave?: (scrollTop: number) => void;
 }
 
-export function ChatWindow({ session, newSessionCwd, onAgentEnd, onSessionCreated, onSessionForked, modelsRefreshKey, chatInputRef, onBranchDataChange, onSystemPromptChange, onSessionStatsChange, onContextUsageChange, initialDraft, onDraftChange }: Props) {
+export function ChatWindow({ session, newSessionCwd, onAgentEnd, onSessionCreated, onSessionForked, modelsRefreshKey, chatInputRef, onBranchDataChange, onSystemPromptChange, onSessionStatsChange, onContextUsageChange, initialDraft, onDraftChange, initialScrollTop, onScrollSave }: Props) {
   const { t } = useI18n();
   const { soundEnabled, onSoundToggle, playDoneSound } = useAudio();
   const playDoneSoundRef = useRef(playDoneSound);
@@ -78,6 +82,8 @@ export function ChatWindow({ session, newSessionCwd, onAgentEnd, onSessionCreate
     session, newSessionCwd, onAgentEnd, onSessionCreated, onSessionForked,
     modelsRefreshKey, onBranchDataChange, onSystemPromptChange,
     onAgentEndEvent: handleAgentEndEvent,
+    initialScrollTop,
+    onScrollSave,
   });
 
   const [branchCloneModal, setBranchCloneModal] = useState<{

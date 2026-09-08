@@ -6,12 +6,18 @@ interface UseChatScrollOptions {
   messageCount: number;
   agentRunning: boolean;
   streamingMessage?: unknown;
+  /** Saved scrollTop of the previous view of this session (restored on load). */
+  initialScrollTop?: number | null;
+  /** Called with the container's scrollTop as it changes (throttled by scroll events). */
+  onScrollSave?: (scrollTop: number) => void;
 }
 
 export function useChatScroll({
   messageCount,
   agentRunning,
   streamingMessage,
+  initialScrollTop,
+  onScrollSave,
 }: UseChatScrollOptions) {
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
@@ -19,6 +25,11 @@ export function useChatScroll({
   const pendingScrollToUserRef = useRef(false);
   const initialScrollDoneRef = useRef(false);
   const isAtBottomRef = useRef(true);
+  // Captured at mount; ChatWindow remounts per session switch, so a fresh hook
+  // instance always sees the correct per-session value.
+  const initialScrollTopRef = useRef(initialScrollTop);
+  const onScrollSaveRef = useRef(onScrollSave);
+  onScrollSaveRef.current = onScrollSave;
 
   const setScrollContainer = useCallback((node: HTMLDivElement | null) => {
     scrollContainerRef.current = node;
@@ -36,6 +47,7 @@ export function useChatScroll({
       container.scrollHeight - container.scrollTop - container.clientHeight;
     // Consider user at bottom if within 80px of bottom
     isAtBottomRef.current = distanceToBottom < 80;
+    onScrollSaveRef.current?.(container.scrollTop);
   }, [containerNode]);
 
   // Track user scroll position on the active container node
@@ -46,13 +58,21 @@ export function useChatScroll({
     return () => containerNode.removeEventListener("scroll", handleScroll);
   }, [containerNode, handleScroll]);
 
-  // Initial load scroll to bottom once container mounts
+  // Initial load: restore the saved scroll position (same session revisited),
+  // otherwise scroll to bottom once the container + messages are ready.
   useEffect(() => {
     if (messageCount <= 0 || !containerNode) return;
     if (!initialScrollDoneRef.current) {
       initialScrollDoneRef.current = true;
-      isAtBottomRef.current = true;
-      scrollToBottom("auto");
+      const saved = initialScrollTopRef.current;
+      if (saved != null) {
+        containerNode.scrollTop = saved;
+        const dist = containerNode.scrollHeight - saved - containerNode.clientHeight;
+        isAtBottomRef.current = dist < 80;
+      } else {
+        isAtBottomRef.current = true;
+        scrollToBottom("auto");
+      }
     }
   }, [messageCount, containerNode, scrollToBottom]);
 

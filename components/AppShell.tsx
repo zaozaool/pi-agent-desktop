@@ -66,6 +66,16 @@ export function AppShell() {
     if (text) draftMapRef.current.set(key, text);
     else draftMapRef.current.delete(key);
   }, []);
+
+  // Per-session chat scroll position, mirroring the draft map. ChatWindow
+  // remounts on session switch; the map preserves scrollTop so switching
+  // back lands where the user left off instead of snapping to the bottom.
+  const scrollMapRef = useRef(new Map<string, number>());
+  const handleScrollSave = useCallback((scrollTop: number) => {
+    const key = draftKeyRef.current;
+    if (!key) return;
+    scrollMapRef.current.set(key, scrollTop);
+  }, []);
   const [explorerRefreshKey, setExplorerRefreshKey] = useState(0);
   const [modelsConfigOpen, setModelsConfigOpen] = useState(false);
   const [modelsRefreshKey, setModelsRefreshKey] = useState(0);
@@ -743,6 +753,8 @@ export function AppShell() {
                 chatInputRef={chatInputRef}
                 initialDraft={draftKey ? draftMapRef.current.get(draftKey) ?? "" : ""}
                 onDraftChange={handleDraftChange}
+                initialScrollTop={draftKey ? scrollMapRef.current.get(draftKey) ?? null : null}
+                onScrollSave={handleScrollSave}
                 onBranchDataChange={handleBranchDataChange}
                 onSystemPromptChange={handleSystemPromptChange}
                 onSessionStatsChange={handleSessionStatsChange}
