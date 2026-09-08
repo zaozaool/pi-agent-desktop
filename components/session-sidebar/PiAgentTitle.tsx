@@ -54,8 +54,9 @@ export function PiAgentTitle() {
   const { t } = useI18n();
   const revertTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const target = showVersion ? `v${process.env.NEXT_PUBLIC_PI_VERSION ?? "0.0.0"}` : "";
-  // const target = showVersion ? `${process.env.NEXT_PUBLIC_APP_VERSION ?? "0.0.0"}p${process.env.NEXT_PUBLIC_PI_VERSION ?? "0.0.0"}` : "Pi Agent Desktop";
+  const appVersion = process.env.NEXT_PUBLIC_APP_VERSION ?? "0.0.0";
+  const piVersion = process.env.NEXT_PUBLIC_PI_VERSION ?? "0.0.0";
+  const target = showVersion ? `v${appVersion} · pi ${piVersion}` : "";
   const display = useScramble(target, scrambling);
 
   const triggerScramble = useCallback((toVersion: boolean) => {
@@ -95,7 +96,7 @@ export function PiAgentTitle() {
         <path fill="currentColor" d="M517.36 400 H634.72 V634.72 H517.36 Z" />
       </svg>
       {showVersion && (
-        <span className="font-bold text-[13px] tracking-normal font-mono text-accent min-w-[6ch] text-left">
+        <span className="font-bold text-[13px] tracking-normal font-mono text-accent min-w-0 text-left whitespace-nowrap overflow-hidden text-ellipsis">
           {display}
         </span>
       )}
