@@ -51,6 +51,7 @@ Branch: `dev/`（日常）/ `future/`（大功能），默认 merge commit，见
 | 功能 | 路径 |
 | --- | --- |
 | 发送消息 | `POST /api/agent/[id]` → `startRpcSession()` → `AgentSessionWrapper` |
+| 模型 / 认证 | `createPiRuntime()` → `createAgentSessionServices`（含扩展注册的 provider） |
 | 历史浏览 | `GET /api/sessions/*` → `session-reader.ts`（只读，不建 Session） |
 | 会话克隆 | `POST /api/sessions/[id]/clone` → 普通目录或 Git Worktree |
 | SSE 流 | `GET /api/agent/[id]/events`（30s 心跳） |
@@ -105,11 +106,17 @@ Branch: `dev/`（日常）/ `future/`（大功能），默认 merge commit，见
 
 SDK 存 `{id, name, arguments}`，前端用 `{toolCallId, toolName, input}`。`normalizeToolCalls()` 在文件加载和 SSE 流两处都转换。
 
-Frontend 依赖必须放 `devDependencies`（否则 electron-builder 盲目打包进 app.asar）。`next.config.ts` 的 `outputFileTracingExcludes` 必须排除 `release/`、`.git/`、`dist/` 和 `*.test.*`，否则 NFT 会把旧安装包和测试文件打进 standalone。详见 [ARCHITECTURE.md](docs/ARCHITECTURE.md)。
+### 3b. 模型列表不要退回 ModelRuntime.create-only
 
-### 6. Next 16 Turbopack standalone 必须补齐 turbo runtime
+`createPiRuntime` 必须再走 `createAgentSessionServices`，否则扩展注册的模型从选择器消失。详见 [ARCHITECTURE.md §14.17](docs/ARCHITECTURE.md#1417-模型列表必须走-createagentsessionservices2026-09-0834)。
 
-`build:standalone` 会在 `next build` 后依次补齐 Next、Pi 和 macOS Universal 原生运行时。缺少 Next turbo runtime 会导致安装包卡在启动页；缺少 macOS 双架构 Sharp 或删除 `mac.x64ArchFiles` 会导致 Universal 合并失败或 Intel 端运行时错误。详见 [ARCHITECTURE.md §14.10b](docs/ARCHITECTURE.md#1410b-next-16-turbopack-standalone-缺-app-route-runtime2026-08-03) 与 [§14.10c](docs/ARCHITECTURE.md#1410c-macos-universal-必须补齐双架构原生运行时)。
+### 4–6. 打包陷阱（摘要）
+
+- `node_modules` 须独立 extraResources 条目（`filter:["**/*"]` 静默排除它）
+- Frontend 依赖放 `devDependencies`；`outputFileTracingExcludes` 排除 `release/`/`.git/`/`dist/`/`*.test.*`
+- `build:standalone` 须补齐 Next turbo runtime；macOS Universal 须双架构 Sharp
+
+`build:standalone` 会在 `next build` 后依次补齐 Next、Pi 和 macOS Universal 原生运行时。缺少 Next turbo runtime 会导致安装包卡在启动页；缺少 macOS 双架构 Sharp 或删除 `mac.x64ArchFiles` 会导致 Universal 合并失败或 Intel 端运行时错误。详见 [ARCHITECTURE.md §14.10b](docs/ARCHITECTURE.md#1410b-next-16-turbopack-standalone-缺-app-route-runtime2026-08-03) 与 [§14.10c](docs/ARCHITECTURE.md#1410c-macos-打包架构选择macarch-与原生运行时对齐)。
 
 ---
 
