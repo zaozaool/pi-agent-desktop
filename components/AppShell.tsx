@@ -47,6 +47,25 @@ export function AppShell() {
   const [newSessionCwd, setNewSessionCwd] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
   const [sessionKey, setSessionKey] = useState(0);
+
+  // Per-session input drafts. ChatWindow remounts on session switch (sessionKey
+  // bump), wiping ChatInput's internal state — the map preserves typed text so
+  // switching back restores it. Keyed by session id, or `new:<cwd>` for the
+  // not-yet-created new-session view.
+  const draftMapRef = useRef(new Map<string, string>());
+  const draftKey = selectedSession
+    ? selectedSession.id
+    : newSessionCwd
+    ? `new:${newSessionCwd}`
+    : "";
+  const draftKeyRef = useRef(draftKey);
+  draftKeyRef.current = draftKey;
+  const handleDraftChange = useCallback((text: string) => {
+    const key = draftKeyRef.current;
+    if (!key) return;
+    if (text) draftMapRef.current.set(key, text);
+    else draftMapRef.current.delete(key);
+  }, []);
   const [explorerRefreshKey, setExplorerRefreshKey] = useState(0);
   const [modelsConfigOpen, setModelsConfigOpen] = useState(false);
   const [modelsRefreshKey, setModelsRefreshKey] = useState(0);
@@ -722,6 +741,8 @@ export function AppShell() {
                 onSessionForked={handleSessionForked}
                 modelsRefreshKey={modelsRefreshKey}
                 chatInputRef={chatInputRef}
+                initialDraft={draftKey ? draftMapRef.current.get(draftKey) ?? "" : ""}
+                onDraftChange={handleDraftChange}
                 onBranchDataChange={handleBranchDataChange}
                 onSystemPromptChange={handleSystemPromptChange}
                 onSessionStatsChange={handleSessionStatsChange}

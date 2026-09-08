@@ -43,6 +43,10 @@ interface Props {
   retryInfo?: { attempt: number; maxAttempts: number; errorMessage?: string } | null;
   soundEnabled?: boolean;
   onSoundToggle?: () => void;
+  /** Seed text restored from the per-session draft store on remount. */
+  initialDraft?: string;
+  /** Called whenever the draft text changes (also cleared after send). */
+  onDraftChange?: (text: string) => void;
   followUpQueue?: FollowUpQueueSnapshot;
   followUpQueueBusy?: boolean;
   onReorderFollowUps?: (orderedIds: string[]) => void;
@@ -56,10 +60,17 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
   thinkingLevel, onThinkingLevelChange, availableThinkingLevels, thinkingLevelMap,
   retryInfo,
   soundEnabled, onSoundToggle,
+  initialDraft, onDraftChange,
   followUpQueue, followUpQueueBusy, onReorderFollowUps,
 }: Props, ref) {
   const { t } = useI18n();
-  const [value, setValue] = useState("");
+  const [value, setValue] = useState(initialDraft ?? "");
+
+  // Mirror every draft mutation (typing, slash inserts, send-clears) into the
+  // caller's per-session draft store so switching sessions and back keeps text.
+  useEffect(() => {
+    onDraftChange?.(value);
+  }, [value, onDraftChange]);
   const [secondaryControlsOpen, setSecondaryControlsOpen] = useState(false);
   const [attachedImages, setAttachedImages] = useState<AttachedImage[]>([]);
   // 跟踪最新 attachedImages 供 unmount cleanup 读取（避免捕获 mount 时空数组快照）
