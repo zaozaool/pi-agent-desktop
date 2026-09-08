@@ -56,8 +56,8 @@ export function PiAgentTitle() {
 
   const appVersion = process.env.NEXT_PUBLIC_APP_VERSION ?? "0.0.0";
   const piVersion = process.env.NEXT_PUBLIC_PI_VERSION ?? "0.0.0";
-  const target = showVersion ? `v${appVersion} · pi ${piVersion}` : "";
-  const display = useScramble(target, scrambling);
+  const displayApp = useScramble(showVersion ? `v${appVersion}` : "", scrambling);
+  const displayPi = useScramble(showVersion ? `π${piVersion}` : "", scrambling);
 
   const triggerScramble = useCallback((toVersion: boolean) => {
     setShowVersion(toVersion);
@@ -96,8 +96,13 @@ export function PiAgentTitle() {
         <path fill="currentColor" d="M517.36 400 H634.72 V634.72 H517.36 Z" />
       </svg>
       {showVersion && (
-        <span className="font-bold text-[13px] tracking-normal font-mono text-accent min-w-0 text-left whitespace-nowrap overflow-hidden text-ellipsis">
-          {display}
+        <span className="flex flex-col items-start leading-tight min-w-0">
+          <span className="font-bold text-[13px] tracking-normal font-mono text-accent whitespace-nowrap">
+            {displayPi}
+          </span>
+          <span className="font-medium text-[11px] tracking-normal font-mono text-text-dim whitespace-nowrap">
+            {displayApp}
+          </span>
         </span>
       )}
     </button>
