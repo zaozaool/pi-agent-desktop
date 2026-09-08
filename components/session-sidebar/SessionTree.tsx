@@ -17,6 +17,7 @@ interface SessionTreeItemProps {
   onExportSession?: (s: SessionInfo) => void;
   depth: number;
   runningIds?: Set<string>;
+  unreadIds?: Set<string>;
 }
 
 export function SessionTreeItem({
@@ -30,6 +31,7 @@ export function SessionTreeItem({
   onExportSession,
   depth,
   runningIds,
+  unreadIds,
 }: SessionTreeItemProps) {
   const [collapsed, setCollapsed] = useState(false);
   const hasChildren = node.children.length > 0;
@@ -60,6 +62,7 @@ export function SessionTreeItem({
           collapsed={collapsed}
           onToggleCollapse={() => setCollapsed((v) => !v)}
           isRunning={runningIds?.has(node.session.id) ?? false}
+          isUnread={unreadIds?.has(node.session.id) ?? false}
         />
       </div>
       {hasChildren && (
@@ -82,6 +85,7 @@ export function SessionTreeItem({
                 onExportSession={onExportSession}
                 depth={depth + 1}
                 runningIds={runningIds}
+                unreadIds={unreadIds}
               />
             ))}
           </div>
@@ -105,6 +109,7 @@ interface SessionItemProps {
   collapsed?: boolean;
   onToggleCollapse?: () => void;
   isRunning?: boolean;
+  isUnread?: boolean;
 }
 
 function SessionItem({
@@ -121,6 +126,7 @@ function SessionItem({
   collapsed = false,
   onToggleCollapse,
   isRunning = false,
+  isUnread = false,
 }: SessionItemProps) {
   const { locale, t } = useI18n();
   const [hovered, setHovered] = useState(false);
@@ -277,6 +283,16 @@ function SessionItem({
       ) : (
         /* ── Normal view ── */
         <>
+          {/* Unread dot: the session finished a background run while not open */}
+          {isUnread && !isRunning && (
+            <span
+              className="w-1.5 h-1.5 rounded-full shrink-0"
+              style={{ background: "var(--accent)" }}
+              role="status"
+              aria-label={t("sidebar.unreadMessages")}
+              title={t("sidebar.unreadMessages")}
+            />
+          )}
           {/* Fork indicator for child sessions */}
           {depth > 0 && (
             <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="stroke-text-dim shrink-0">

@@ -64,6 +64,43 @@ export function SessionSidebar({
   // keeps showing on background sessions after switching away.
   const runningSessionIds = useRunningSessions();
 
+  // Sessions that finished a run in the background and haven't been opened
+  // since — they get a dot instead of the (now-stopped) spinner.
+  const [unreadIds, setUnreadIds] = useState<Set<string>>(() => new Set());
+  const prevRunningRef = useRef<Set<string>>(runningSessionIds);
+  const selectedSessionIdRef = useRef(selectedSessionId);
+  selectedSessionIdRef.current = selectedSessionId;
+  useEffect(() => {
+    const prev = prevRunningRef.current;
+    prevRunningRef.current = runningSessionIds;
+    const finished: string[] = [];
+    prev.forEach((id) => {
+      if (!runningSessionIds.has(id)) finished.push(id);
+    });
+    if (finished.length === 0) return;
+    setUnreadIds((current) => {
+      let next: Set<string> | null = null;
+      for (const id of finished) {
+        if (id === selectedSessionIdRef.current) continue;
+        if (current.has(id)) continue;
+        if (next === null) next = new Set(current);
+        next.add(id);
+      }
+      return next ?? current;
+    });
+  }, [runningSessionIds]);
+
+  // Opening a session clears its unread dot.
+  useEffect(() => {
+    if (!selectedSessionId) return;
+    setUnreadIds((current) => {
+      if (!current.has(selectedSessionId)) return current;
+      const next = new Set(current);
+      next.delete(selectedSessionId);
+      return next;
+    });
+  }, [selectedSessionId]);
+
   // Git branch of the selected project; fetching updates the remote-tracking
   // refs, so the file explorer is refreshed afterwards as well.
   const gitBranches = useGitBranches(selectedCwd, {
@@ -250,12 +287,13 @@ export function SessionSidebar({
               onExportSession={onExportSession}
               depth={0}
               runningIds={runningSessionIds}
+              unreadIds={unreadIds}
             />
           ))}
         </div>
       );
     },
-    [sessionTreeByCwd, selectedSessionId, onSelectSession, loadSessions, onSessionDeleted, onBranchSession, onCloneSession, onExportSession, t]
+    [sessionTreeByCwd, selectedSessionId, onSelectSession, loadSessions, onSessionDeleted, onBranchSession, onCloneSession, onExportSession, runningSessionIds, unreadIds, t]
   );
 
   return (
