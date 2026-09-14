@@ -120,6 +120,7 @@ export const en = {
   "thinking.medium.desc": "Medium reasoning",
   "thinking.high.desc": "High reasoning",
   "thinking.xhigh.desc": "Maximum reasoning",
+  "thinking.max.desc": "Maximum reasoning",
   "agentMode.plan.label": "Plan",
   "agentMode.plan.desc": "Explore read-only, then propose a plan",
   "agentMode.ask.label": "Ask",
@@ -411,6 +412,8 @@ export const en = {
   "error.description": "The interface hit an unexpected error while rendering. Session data stays safe on disk. Reload the interface to continue; if this keeps happening, restart the app.",
   "error.digest": "Error digest: {digest}",
   "error.reload": "Reload interface",
+  "runtimeError.toast": "An unexpected error occurred. Details were logged to the console.",
+  "runtimeError.dismiss": "Dismiss",
   "common.toolsCount": "{count} tools",
 } as const;
 
@@ -539,6 +542,7 @@ export const zhCN: Record<TranslationKey, string> = {
   "thinking.medium.desc": "中等推理",
   "thinking.high.desc": "高强度推理",
   "thinking.xhigh.desc": "最高强度推理",
+  "thinking.max.desc": "最大强度推理",
   "agentMode.plan.label": "计划",
   "agentMode.plan.desc": "只读探索，先给出计划",
   "agentMode.ask.label": "询问",
@@ -830,5 +834,7 @@ export const zhCN: Record<TranslationKey, string> = {
   "error.description": "界面渲染时遇到意外错误。会话数据仍安全保存在磁盘上。请重新加载界面；如果问题持续出现，请重启应用。",
   "error.digest": "错误摘要：{digest}",
   "error.reload": "重新加载界面",
+  "runtimeError.toast": "发生未处理的错误，详情已记录到控制台。",
+  "runtimeError.dismiss": "关闭",
   "common.toolsCount": "{count} 个工具",
 };

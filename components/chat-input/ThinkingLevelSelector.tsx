@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useI18n } from "../I18nProvider";
 
-const THINKING_LEVELS = ["auto", "off", "minimal", "low", "medium", "high", "xhigh"] as const;
+import { THINKING_LEVELS, getThinkingLevelsForModel } from "./thinking-levels";
 
 export type ThinkingLevel = (typeof THINKING_LEVELS)[number];
 
@@ -56,11 +56,7 @@ export function ThinkingLevelSelector({
 
   if (!onThinkingLevelChange) return null;
 
-  const levels = THINKING_LEVELS.filter((lvl) => {
-    if (!availableThinkingLevels) return true;
-    if (lvl === "auto") return true;
-    return availableThinkingLevels.includes(lvl);
-  });
+  const levels = getThinkingLevelsForModel(availableThinkingLevels);
 
   return (
     <div ref={triggerRef} style={{ position: "relative" }}>
