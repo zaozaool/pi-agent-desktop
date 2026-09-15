@@ -1,6 +1,6 @@
 import { resolveSessionPath, getHeaderAsync } from "@/lib/session-reader";
 import { getRpcSession, startRpcSession, getSessionOnlyTrustMap } from "@/lib/rpc-manager";
-import { errorMessage, getRequestId, logApiError } from "@/lib/api-error";
+import { errorMessage, getRequestId, jsonError, logApiError } from "@/lib/api-error";
 import { evaluateProjectTrust } from "@/lib/project-trust-desktop";
 
 export const dynamic = "force-dynamic";
@@ -16,32 +16,37 @@ export async function GET(
   // Fast path: already-running session
   let session = getRpcSession(id);
   if (!session || !session.isAlive()) {
-    const filePath = await resolveSessionPath(id);
-    if (!filePath) {
-      return new Response("Session not found", {
-        status: 404,
-        headers: { "x-request-id": requestId },
-      });
+    let filePath: string;
+    let cwd: string;
+    try {
+      const resolvedPath = await resolveSessionPath(id);
+      if (!resolvedPath) {
+        return jsonError(req, 404, "Session not found", { errorCode: "SESSION_NOT_FOUND" });
+      }
+      filePath = resolvedPath;
+      const header = await getHeaderAsync(filePath);
+      cwd = header?.cwd ?? process.cwd();
+      const trustGate = evaluateProjectTrust(cwd, { sessionOnlyTrust: getSessionOnlyTrustMap() });
+      if (trustGate.action === "prompt") {
+        return new Response(JSON.stringify(trustGate.payload), {
+          status: 409,
+          headers: {
+            "content-type": "application/json",
+            "x-request-id": requestId,
+          },
+        });
+      }
+    } catch (error) {
+      logApiError({ route: "/api/agent/[id]/events", method: "GET", requestId, error, params: { id } });
+      return jsonError(req, 500, errorMessage(error), { errorCode: "AGENT_EVENTS_INIT_FAILED" });
     }
-    const header = await getHeaderAsync(filePath);
-    const cwd = header?.cwd ?? process.cwd();
-    const trustGate = evaluateProjectTrust(cwd, { sessionOnlyTrust: getSessionOnlyTrustMap() });
-    if (trustGate.action === "prompt") {
-      return new Response(JSON.stringify(trustGate.payload), {
-        status: 409,
-        headers: {
-          "content-type": "application/json",
-          "x-request-id": requestId,
-        },
-      });
-    }
+
     try {
       ({ session } = await startRpcSession(id, filePath, cwd));
     } catch (error) {
       logApiError({ route: "/api/agent/[id]/events", method: "GET", requestId, error, params: { id } });
-      return new Response(`Failed to start agent: ${errorMessage(error)}`, {
-        status: 500,
-        headers: { "x-request-id": requestId },
+      return jsonError(req, 500, `Failed to start agent: ${errorMessage(error)}`, {
+        errorCode: "AGENT_START_FAILED",
       });
     }
   }

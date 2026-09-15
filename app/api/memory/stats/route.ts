@@ -1,12 +1,6 @@
 import { NextResponse } from "next/server";
-import { errorMessage, getRequestId, jsonError, logApiError } from "@/lib/api-error";
-import {
-  isLtmDisabledError,
-  isStatsNotSupportedError,
-  LTM_DISABLED,
-  LTM_STATS_NOT_SUPPORTED,
-  parseStatsQuery,
-} from "@/lib/ltm/http";
+import { getRequestId, jsonError } from "@/lib/api-error";
+import { jsonLtmError, LTM_DISABLED, parseStatsQuery } from "@/lib/ltm/http";
 import { getMemoryService } from "@/lib/ltm/service";
 
 export const dynamic = "force-dynamic";
@@ -24,9 +18,11 @@ export async function GET(req: Request) {
     const stats = await service.statsFromCwd(parsed.value.cwd);
     return NextResponse.json(stats, { headers: { "x-request-id": requestId } });
   } catch (error) {
-    if (isLtmDisabledError(error)) return jsonError(req, 503, LTM_DISABLED);
-    if (isStatsNotSupportedError(error)) return jsonError(req, 501, LTM_STATS_NOT_SUPPORTED);
-    logApiError({ route: "/api/memory/stats", method: "GET", requestId, error });
-    return jsonError(req, 500, errorMessage(error));
+    return jsonLtmError(
+      req,
+      error,
+      { route: "/api/memory/stats", method: "GET", requestId },
+      { statsNotSupported: true },
+    );
   }
 }
