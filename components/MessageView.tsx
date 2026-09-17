@@ -192,24 +192,16 @@ const UserMessageView = React.memo(function UserMessageView({
   }, [copied]);
 
   const content = getTextContent(message.content);
-  const imageBlocks = getImageContent(message.content);
-
-  // Resolved data-URI / URL per image block; blocks without a usable source
-  // are dropped from both the thumbnails and the lightbox so indices stay in
-  // sync between the two.
-  const imageSrcs = imageBlocks.map((img) => {
-    const flat = img as unknown as { data?: string; mimeType?: string };
-    return img.source
-      ? img.source.type === "base64"
-        ? `data:${img.source.media_type};base64,${img.source.data}`
-        : img.source.url ?? ""
-      : flat.data
-      ? `data:${flat.mimeType};base64,${flat.data}`
-      : "";
-  });
-  const viewableImages = imageSrcs
-    .map((src) => ({ src }))
-    .filter((x) => x.src !== "");
+  // Image blocks are normalized by getImageContent to the source-wrapped
+  // shape, so every returned block has a usable src. The list is shared by
+  // the thumbnails and the lightbox so indices stay in sync between the two.
+  const viewableImages = getImageContent(message.content)
+    .map((img) => ({
+      src: img.source.type === "base64"
+        ? `data:${img.source.media_type};base64,${img.source.data ?? ""}`
+        : img.source.url ?? "",
+    }))
+    .filter((x) => x.src !== "" && !x.src.endsWith("base64,"));
 
   const time = formatTime(message.timestamp);
   const canFork = !!entryId && !!onFork;

@@ -10,8 +10,27 @@ function isTextContent(value: unknown): value is TextContent {
   return isRecord(value) && value.type === "text" && typeof value.text === "string";
 }
 
-function isImageContent(value: unknown): value is ImageContent {
-  return isRecord(value) && value.type === "image" && isRecord(value.source);
+/**
+ * Normalize an image block into the {source:{...}} shape used by lib/types.
+ * pi's on-disk .jsonl format stores images flat as {type:"image", data,
+ * mimeType} (no source wrapper), while runtime messages and UI-sent messages
+ * use the wrapped {source:{type:"base64", media_type, data}} shape. Handle
+ * both so historical sessions keep rendering thumbnails.
+ */
+function normalizeImageContent(value: RecordValue): ImageContent | null {
+  if (isRecord(value.source)) return value as unknown as ImageContent;
+  const flat = value as { data?: unknown; mimeType?: unknown };
+  if (typeof flat.data === "string" && flat.data.length > 0) {
+    return {
+      type: "image",
+      source: {
+        type: "base64",
+        media_type: typeof flat.mimeType === "string" && flat.mimeType ? flat.mimeType : "image/png",
+        data: flat.data,
+      },
+    };
+  }
+  return null;
 }
 
 const ASSISTANT_BLOCK_TYPES = new Set(["text", "image", "thinking", "toolCall"]);
@@ -44,8 +63,10 @@ export function getAssistantContent(content: unknown): AssistantContentBlock[] {
   return content.filter(isAssistantContentBlock);
 }
 
-/** Return only valid image blocks from a runtime message payload. */
+/** Return valid image blocks from a message payload, normalized to the source-wrapped shape. */
 export function getImageContent(content: unknown): ImageContent[] {
   if (!Array.isArray(content)) return [];
-  return content.filter(isImageContent);
+  return content.flatMap((block) =>
+    isRecord(block) && block.type === "image" ? normalizeImageContent(block) ?? [] : []
+  );
 }

@@ -17,6 +17,23 @@ test("message content helpers preserve valid text and image blocks", () => {
   assert.equal(getImageContent(content).length, 1);
 });
 
+test("getImageContent normalizes flat on-disk image blocks ({data, mimeType})", () => {
+  // pi stores images in .jsonl flat, without a source wrapper
+  const content = [
+    { type: "text", text: "see attachment" },
+    { type: "image", data: "aGk=", mimeType: "image/png" },
+  ];
+
+  assert.deepEqual(getImageContent(content), [
+    { type: "image", source: { type: "base64", media_type: "image/png", data: "aGk=" } },
+  ]);
+  // missing mimeType falls back to png, missing data drops the block
+  assert.deepEqual(getImageContent([{ type: "image", data: "aGk=" }]), [
+    { type: "image", source: { type: "base64", media_type: "image/png", data: "aGk=" } },
+  ]);
+  assert.deepEqual(getImageContent([{ type: "image", mimeType: "image/jpeg" }]), []);
+});
+
 test("message content helpers safely handle malformed runtime payloads", () => {
   assert.equal(getTextContent(undefined), "");
   assert.equal(getTextContent(null), "");
@@ -35,5 +52,4 @@ test("message content helpers safely handle malformed runtime payloads", () => {
   assert.deepEqual(
     getImageContent([{ type: "image" }, { type: "image", source: {} }]),
     [{ type: "image", source: {} }],
-  );
-});
+  );});
