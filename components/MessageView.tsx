@@ -19,6 +19,7 @@ import type {
   CustomMessage,
 } from "@/lib/types";
 import { getAssistantContent, getImageContent, getTextContent } from "./message-content";
+import { ImageLightbox } from "./ImageLightbox";
 
 interface Props {
   message: AgentMessage;
@@ -193,9 +194,29 @@ const UserMessageView = React.memo(function UserMessageView({
   const content = getTextContent(message.content);
   const imageBlocks = getImageContent(message.content);
 
+  // Resolved data-URI / URL per image block; blocks without a usable source
+  // are dropped from both the thumbnails and the lightbox so indices stay in
+  // sync between the two.
+  const imageSrcs = imageBlocks.map((img) => {
+    const flat = img as unknown as { data?: string; mimeType?: string };
+    return img.source
+      ? img.source.type === "base64"
+        ? `data:${img.source.media_type};base64,${img.source.data}`
+        : img.source.url ?? ""
+      : flat.data
+      ? `data:${flat.mimeType};base64,${flat.data}`
+      : "";
+  });
+  const viewableImages = imageSrcs
+    .map((src) => ({ src }))
+    .filter((x) => x.src !== "");
+
   const time = formatTime(message.timestamp);
   const canFork = !!entryId && !!onFork;
   const canNavigate = !!prevAssistantEntryId && !!onNavigate;
+
+  // Click-to-view lightbox state: which image is open (null = closed).
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
 
   const copyContent = () => {
     copyText(content).then(() => {
@@ -214,24 +235,18 @@ const UserMessageView = React.memo(function UserMessageView({
           className="user-message-bubble flex-1 min-w-0 bg-user-bg border border-user-border rounded-panel px-3 py-2 text-[14px] leading-[1.6] text-text whitespace-pre-wrap break-words"
           data-delivery={message.deliveryState ?? "sent"}
         >
-          {imageBlocks.length > 0 && (
+          {viewableImages.length > 0 && (
             <div className={`flex gap-1.5 flex-wrap ${content ? "mb-2" : "mb-0"}`}>
-              {imageBlocks.map((img, i) => {
-                const flat = img as unknown as { data?: string; mimeType?: string };
-                const src = img.source
-                  ? img.source.type === "base64"
-                    ? `data:${img.source.media_type};base64,${img.source.data}`
-                    : img.source.url ?? ""
-                  : flat.data
-                  ? `data:${flat.mimeType};base64,${flat.data}`
-                  : "";
+              {viewableImages.map((img, i) => {
                 return (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
                     key={i}
-                    src={src}
+                    src={img.src}
                     alt=""
-                    className="max-w-[240px] max-h-[240px] rounded-md object-contain block border border-user-border"
+                    title={t("lightbox.title")}
+                    className="max-w-[240px] max-h-[240px] rounded-md object-contain block border border-user-border cursor-zoom-in"
+                    onClick={() => setLightboxIndex(i)}
                   />
                 );
               })}
@@ -334,6 +349,14 @@ const UserMessageView = React.memo(function UserMessageView({
           )}
           {time && <span className="text-[10px] text-text-dim">{time}</span>}
         </div>
+      )}
+      {lightboxIndex !== null && (
+        <ImageLightbox
+          images={viewableImages}
+          index={Math.min(lightboxIndex, viewableImages.length - 1)}
+          onClose={() => setLightboxIndex(null)}
+          onNavigate={setLightboxIndex}
+        />
       )}
     </div>
   );
