@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
-import type { AgentMessage, SessionTreeNode } from "../../lib/types";
+import type { AgentMessage, FlatTreeNode, SessionTreeNode } from "../../lib/types";
 import type { FollowUpQueueSnapshot } from "../../lib/follow-up-queue";
 import { fetchSession, fetchContext } from "./session-loader-api.ts";
 
@@ -14,6 +14,7 @@ export function latestRequestStale(ref: { current: number }): () => boolean {
 export interface SessionData {
   sessionId: string;
   filePath: string;
+  /** Nested session tree (rebuilt client-side from the API's flat node list). */
   tree: SessionTreeNode[];
   leafId: string | null;
   context: {
@@ -22,6 +23,31 @@ export interface SessionData {
     thinkingLevel: string;
     model: { provider: string; modelId: string } | null;
   };
+}
+
+/**
+ * Rebuild the nested session tree from the API's flat node list. The server
+ * sends flat nodes because the nested form is thousands of levels deep for
+ * long sessions and breaks JSON.stringify server-side. Building here is
+ * iterative; the sort mirrors the old server-side children ordering.
+ */
+function rebuildTree(flat: FlatTreeNode[]): SessionTreeNode[] {
+  const nodeMap = new Map<string, SessionTreeNode>();
+  for (const f of flat) nodeMap.set(f.id, { entry: f.entry, children: [], label: f.label });
+  const roots: SessionTreeNode[] = [];
+  for (const f of flat) {
+    const node = nodeMap.get(f.id)!;
+    const parent = f.parentId ? nodeMap.get(f.parentId) : undefined;
+    if (parent) parent.children.push(node);
+    else roots.push(node);
+  }
+  const stack = [...roots];
+  while (stack.length > 0) {
+    const node = stack.pop()!;
+    node.children.sort((a, b) => new Date(a.entry.timestamp).getTime() - new Date(b.entry.timestamp).getTime());
+    stack.push(...node.children);
+  }
+  return roots;
 }
 
 export interface LoadedAgentState {
@@ -59,7 +85,7 @@ export function useSessionLoader(isNew: boolean) {
     const stale = latestRequestStale(loadReqIdRef);
     try {
       if (showLoading) setLoading(true);
-      const d = await fetchSession(sid, includeState) as SessionData & { agentState?: LoadedAgentState } | null;
+      const d = await fetchSession(sid, includeState) as (Omit<SessionData, "tree"> & { tree: FlatTreeNode[]; agentState?: LoadedAgentState }) | null;
       if (stale()) return null;
       if (d === null) {
         if (showLoading) {
@@ -70,7 +96,8 @@ export function useSessionLoader(isNew: boolean) {
         }
         return null;
       }
-      setData(d);
+      const sessionData: SessionData = { ...d, tree: rebuildTree(d.tree) };
+      setData(sessionData);
       setActiveLeafId(d.leafId);
       setMessages(d.context.messages);
       setEntryIds(d.context.entryIds ?? []);

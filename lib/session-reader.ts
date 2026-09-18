@@ -1,5 +1,5 @@
 import { SessionManager, buildSessionContext as piBuildSessionContext, getAgentDir } from "@earendil-works/pi-coding-agent";
-import type { SessionEntry, SessionInfo, SessionContext, SessionTreeNode, AssistantMessage, SessionHeader } from "./types.ts";
+import type { SessionEntry, SessionInfo, SessionContext, FlatTreeNode, TreeNodeEntry, AssistantMessage, SessionHeader } from "./types.ts";
 import type { SessionEntry as PiSessionEntry, SessionInfo as PiSessionInfo } from "@earendil-works/pi-coding-agent";
 import { normalizeToolCalls } from "./normalize.ts";
 import { readFile } from "fs/promises";
@@ -139,10 +139,30 @@ export function readFirstLineAsync(filePath: string): Promise<string | null> {
   });
 }
 
-export function buildTree(entries: SessionEntry[]): SessionTreeNode[] {
-  const nodeMap = new Map<string, SessionTreeNode>();
-  const labelsById = new Map<string, string>();
+const LABEL_PREVIEW_MAX = 200;
 
+/** Flatten a message entry's content to the text preview the branch navigator displays. */
+function toTreeNodeEntry(entry: SessionEntry): TreeNodeEntry {
+  const node: TreeNodeEntry = { id: entry.id, type: entry.type, timestamp: entry.timestamp };
+  if (entry.type === "message" && "message" in entry) {
+    const msg = (entry as unknown as { message: { role: string; content: unknown } }).message;
+    let text = "";
+    if (typeof msg.content === "string") {
+      text = msg.content;
+    } else if (Array.isArray(msg.content)) {
+      text = msg.content
+        .filter((b): b is { type: "text"; text: string } => b.type === "text")
+        .map((b) => b.text)
+        .join(" ");
+    }
+    if (text.length > LABEL_PREVIEW_MAX) text = text.slice(0, LABEL_PREVIEW_MAX) + "…";
+    node.message = { role: msg.role, content: text };
+  }
+  return node;
+}
+
+export function buildTree(entries: SessionEntry[]): FlatTreeNode[] {
+  const labelsById = new Map<string, string>();
   for (const entry of entries) {
     if (entry.type === "label") {
       const l = entry as { type: "label"; targetId: string; label?: string };
@@ -150,29 +170,12 @@ export function buildTree(entries: SessionEntry[]): SessionTreeNode[] {
       else labelsById.delete(l.targetId);
     }
   }
-
-  const roots: SessionTreeNode[] = [];
-  for (const entry of entries) {
-    nodeMap.set(entry.id, { entry, children: [], label: labelsById.get(entry.id) });
-  }
-  for (const entry of entries) {
-    const node = nodeMap.get(entry.id)!;
-    if (!entry.parentId) {
-      roots.push(node);
-    } else {
-      const parent = nodeMap.get(entry.parentId);
-      if (parent) parent.children.push(node);
-      else roots.push(node);
-    }
-  }
-
-  const stack = [...roots];
-  while (stack.length > 0) {
-    const node = stack.pop()!;
-    node.children.sort((a, b) => new Date(a.entry.timestamp).getTime() - new Date(b.entry.timestamp).getTime());
-    stack.push(...node.children);
-  }
-  return roots;
+  return entries.map((entry) => ({
+    id: entry.id,
+    parentId: entry.parentId ?? null,
+    label: labelsById.get(entry.id),
+    entry: toTreeNodeEntry(entry),
+  }));
 }
 
 export function buildSessionContext(entries: SessionEntry[], leafId?: string | null): SessionContext {

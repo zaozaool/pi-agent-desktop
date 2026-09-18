@@ -169,10 +169,33 @@ export type SessionEntry =
 
 export type FileEntry = SessionHeader | SessionEntry;
 
+/** Slim per-entry data for tree display — full message payloads stay out of the tree. */
+export interface TreeNodeEntry {
+  id: string;
+  type: string;
+  timestamp: string;
+  /** For message entries: role + flattened text preview. */
+  message?: { role: string; content: string };
+}
+
 export interface SessionTreeNode {
-  entry: SessionEntry;
+  entry: TreeNodeEntry;
   children: SessionTreeNode[];
   label?: string;
+}
+
+/**
+ * Flat wire format for the session tree. Pi session entries chain linearly
+ * (every entry's parentId points at the previous one), so the nested tree of a
+ * long session is thousands of levels deep — JSON.stringify recurses per level
+ * and overflows the stack in the packaged Electron server. The client rebuilds
+ * the nested SessionTreeNode[] from this list.
+ */
+export interface FlatTreeNode {
+  id: string;
+  parentId: string | null;
+  label?: string;
+  entry: TreeNodeEntry;
 }
 
 export interface SessionInfo {

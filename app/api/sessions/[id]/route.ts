@@ -34,6 +34,9 @@ export async function GET(
     const tree = buildTree(entries);
     const leafId = getLeafId(entries);
     const context = buildSessionContext(entries, leafId);
+    // NOTE: `tree` is a flat node list (lib/types.ts FlatTreeNode) — a nested
+    // tree of a long pi session is thousands of levels deep and overflows the
+    // JSON.stringify stack in the packaged server. The client rebuilds nesting.
 
     const header = entries.length > 0 && (entries[0] as unknown as { type: string }).type === "session" ? entries[0] as unknown as { id: string; cwd?: string; timestamp: string } : null;
     let modified = header?.timestamp ?? new Date().toISOString();
