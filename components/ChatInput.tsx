@@ -45,8 +45,10 @@ interface Props {
   onSoundToggle?: () => void;
   /** Seed text restored from the per-session draft store on remount. */
   initialDraft?: string;
-  /** Called whenever the draft text changes (also cleared after send). */
-  onDraftChange?: (text: string) => void;
+  /** Seed images restored from the per-session draft store on remount. */
+  initialDraftImages?: Array<{ data: string; mimeType: string }>;
+  /** Called whenever the draft (text or images) changes (also cleared after send). */
+  onDraftChange?: (text: string, images: Array<{ data: string; mimeType: string }>) => void;
   followUpQueue?: FollowUpQueueSnapshot;
   followUpQueueBusy?: boolean;
   onReorderFollowUps?: (orderedIds: string[]) => void;
@@ -60,28 +62,44 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
   thinkingLevel, onThinkingLevelChange, availableThinkingLevels, thinkingLevelMap,
   retryInfo,
   soundEnabled, onSoundToggle,
-  initialDraft, onDraftChange,
+  initialDraft, initialDraftImages, onDraftChange,
   followUpQueue, followUpQueueBusy, onReorderFollowUps,
 }: Props, ref) {
   const { t } = useI18n();
   const [value, setValue] = useState(initialDraft ?? "");
 
-  // Mirror every draft mutation (typing, slash inserts, send-clears) into the
-  // caller's per-session draft store so switching sessions and back keeps text.
+  // Restore images attached before the last session switch. Blob preview URLs
+  // die with the previous mount, so previews are rebuilt from the persisted
+  // base64 payload as data URIs (URL.revokeObjectURL is a no-op on those).
+  const [attachedImages, setAttachedImages] = useState<AttachedImage[]>(() =>
+    (initialDraftImages ?? []).map((img) => ({
+      data: img.data,
+      mimeType: img.mimeType,
+      previewUrl: `data:${img.mimeType};base64,${img.data}`,
+    }))
+  );
+
+  // Mirror every draft mutation (typing, image attach/remove, send-clears)
+  // into the caller's per-session draft store so switching sessions and back
+  // keeps text AND images.
   useEffect(() => {
-    onDraftChange?.(value);
-  }, [value, onDraftChange]);
+    onDraftChange?.(
+      value,
+      attachedImages.map(({ data, mimeType }) => ({ data, mimeType }))
+    );
+  }, [value, attachedImages, onDraftChange]);
   const [secondaryControlsOpen, setSecondaryControlsOpen] = useState(false);
-  const [attachedImages, setAttachedImages] = useState<AttachedImage[]>([]);
   // 跟踪最新 attachedImages 供 unmount cleanup 读取（避免捕获 mount 时空数组快照）
   const attachedImagesRef = useRef<AttachedImage[]>([]);
   useEffect(() => {
     attachedImagesRef.current = attachedImages;
   }, [attachedImages]);
-  // 组件卸载时 revoke 所有残留的 blob previewUrl，防止切换 session / 关窗导致内存泄漏
+  // 组件卸载时 revoke 所有残留的 blob previewUrl（data: URI 的 restore 预览无需 revoke）
   useEffect(() => {
     return () => {
-      attachedImagesRef.current.forEach((img) => URL.revokeObjectURL(img.previewUrl));
+      attachedImagesRef.current.forEach((img) => {
+        if (img.previewUrl.startsWith("blob:")) URL.revokeObjectURL(img.previewUrl);
+      });
     };
   }, []);
   const [inputFocused, setInputFocused] = useState(false);

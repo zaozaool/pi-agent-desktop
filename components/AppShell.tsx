@@ -49,10 +49,16 @@ export function AppShell() {
   const [sessionKey, setSessionKey] = useState(0);
 
   // Per-session input drafts. ChatWindow remounts on session switch (sessionKey
-  // bump), wiping ChatInput's internal state — the map preserves typed text so
-  // switching back restores it. Keyed by session id, or `new:<cwd>` for the
-  // not-yet-created new-session view.
-  const draftMapRef = useRef(new Map<string, string>());
+  // bump), wiping ChatInput's internal state — the map preserves typed text and
+  // attached images so switching back restores both. Keyed by session id, or
+  // `new:<cwd>` for the not-yet-created new-session view. Images are stored as
+  // their base64 payload (blob preview URLs die with the remount; ChatInput
+  // rebuilds previews from the data on restore).
+  interface SessionDraft {
+    text: string;
+    images: Array<{ data: string; mimeType: string }>;
+  }
+  const draftMapRef = useRef(new Map<string, SessionDraft>());
   const draftKey = selectedSession
     ? selectedSession.id
     : newSessionCwd
@@ -60,12 +66,15 @@ export function AppShell() {
     : "";
   const draftKeyRef = useRef(draftKey);
   draftKeyRef.current = draftKey;
-  const handleDraftChange = useCallback((text: string) => {
-    const key = draftKeyRef.current;
-    if (!key) return;
-    if (text) draftMapRef.current.set(key, text);
-    else draftMapRef.current.delete(key);
-  }, []);
+  const handleDraftChange = useCallback(
+    (text: string, images: Array<{ data: string; mimeType: string }>) => {
+      const key = draftKeyRef.current;
+      if (!key) return;
+      if (text || images.length > 0) draftMapRef.current.set(key, { text, images });
+      else draftMapRef.current.delete(key);
+    },
+    []
+  );
 
   // Per-session chat scroll position, mirroring the draft map. ChatWindow
   // remounts on session switch; the map preserves scrollTop so switching
@@ -751,7 +760,8 @@ export function AppShell() {
                 onSessionForked={handleSessionForked}
                 modelsRefreshKey={modelsRefreshKey}
                 chatInputRef={chatInputRef}
-                initialDraft={draftKey ? draftMapRef.current.get(draftKey) ?? "" : ""}
+                initialDraft={draftKey ? draftMapRef.current.get(draftKey)?.text ?? "" : ""}
+                initialDraftImages={draftKey ? draftMapRef.current.get(draftKey)?.images : undefined}
                 onDraftChange={handleDraftChange}
                 initialScrollTop={draftKey ? scrollMapRef.current.get(draftKey) ?? null : null}
                 onScrollSave={handleScrollSave}
