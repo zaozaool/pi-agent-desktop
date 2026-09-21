@@ -304,7 +304,7 @@ function createWindow() {
   const { width: workW, height: workH } = screen.getPrimaryDisplay().workAreaSize;
   mainWindow = new BrowserWindow({
     width: Math.min(1680, workW),
-    height: Math.min(1024, workH),
+    height: Math.min(1200, workH),
     minWidth: 800,
     minHeight: 600,
     // Window Controls Overlay (custom title bar buttons) only exists on
