@@ -16,6 +16,7 @@ import {
 } from "./approval-policy.ts";
 import { ExtensionUiBridge } from "./extension-ui-bridge.ts";
 import { desktopApprovalInlineExtension, type AgentModeRef } from "./desktop-approval-extension.ts";
+import { noToolsPromptInlineExtension } from "./desktop-system-prompt-extension.ts";
 import {
   desktopLtmInlineExtension,
   withMemoryTools,
@@ -846,6 +847,7 @@ export async function startRpcSession(
       extensionFactories: [
         desktopApprovalInlineExtension(modeRef),
         desktopLtmInlineExtension({ getCwd: () => cwd }),
+        noToolsPromptInlineExtension(),
       ],
     });
     await resourceLoader.reload();
@@ -866,12 +868,10 @@ export async function startRpcSession(
       inner.setActiveToolsByName(effectiveTools);
     }
 
-    // When all tools are disabled, clear the system prompt entirely.
-    // pi's buildSystemPrompt always produces a non-empty prompt even with no tools;
-    // the only way to truly clear it is to call agent.setSystemPrompt directly.
-    if (effectiveTools.length === 0) {
-      inner.agent.state.systemPrompt = "";
-    }
+    // When all tools are disabled, the no-tools inline extension clears the system
+    // prompt via before_agent_start + forceSystemPrompt (pi 0.86+: the prompt is
+    // re-derived at prompt time, so mutating agent.state.systemPrompt is impossible
+    // and would be overwritten anyway).
 
     // AgentSession is structurally compatible with AgentSessionLike; cast keeps
     // our thin facade free of full ExtensionUIContext coupling.
