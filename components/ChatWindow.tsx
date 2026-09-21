@@ -19,6 +19,7 @@ import { formatDroppedPathMentions, getDroppedFilePath } from "@/lib/file-paths"
 import { SessionSearchBar } from "./SessionSearchBar";
 import { findSessionMatches } from "@/lib/session-search";
 import { useI18n } from "./I18nProvider";
+import type { SessionStats, ContextUsage } from "./StatsBar";
 interface Props {
   session: SessionInfo | null;
   newSessionCwd: string | null;
@@ -29,8 +30,9 @@ interface Props {
   chatInputRef?: React.RefObject<ChatInputHandle | null>;
   onBranchDataChange?: (tree: SessionTreeNode[], activeLeafId: string | null, onLeafChange: (leafId: string | null) => void) => void;
   onSystemPromptChange?: (prompt: string | null) => void;
-  onSessionStatsChange?: (stats: { tokens: { input: number; output: number; cacheRead: number; cacheWrite: number }; cost?: number } | null) => void;
-  onContextUsageChange?: (usage: { percent: number | null; contextWindow: number; tokens: number | null } | null) => void;
+  onSessionStatsChange?: (stats: SessionStats | null) => void;
+  onContextUsageChange?: (usage: ContextUsage | null) => void;
+  onModelChange?: (model: { provider: string; modelId: string } | null) => void;
   /** Seed text restored from the per-session draft store on remount. */
   initialDraft?: string;
   /** Seed images restored from the per-session draft store on remount. */
@@ -43,7 +45,7 @@ interface Props {
   onScrollSave?: (scrollTop: number) => void;
 }
 
-export function ChatWindow({ session, newSessionCwd, onAgentEnd, onSessionCreated, onSessionForked, modelsRefreshKey, chatInputRef, onBranchDataChange, onSystemPromptChange, onSessionStatsChange, onContextUsageChange, initialDraft, initialDraftImages, onDraftChange, initialScrollTop, onScrollSave }: Props) {
+export function ChatWindow({ session, newSessionCwd, onAgentEnd, onSessionCreated, onSessionForked, modelsRefreshKey, chatInputRef, onBranchDataChange, onSystemPromptChange, onSessionStatsChange, onContextUsageChange, onModelChange, initialDraft, initialDraftImages, onDraftChange, initialScrollTop, onScrollSave }: Props) {
   const { t } = useI18n();
   const { soundEnabled, onSoundToggle, playDoneSound } = useAudio();
   const playDoneSoundRef = useRef(playDoneSound);
@@ -106,7 +108,7 @@ export function ChatWindow({ session, newSessionCwd, onAgentEnd, onSessionCreate
   // Push session stats up to AppShell for the top bar.
   // Compare scalar fields to avoid loops from new object identity each render.
   const statsKey = sessionStats
-    ? `${sessionStats.tokens.input}|${sessionStats.tokens.output}|${sessionStats.tokens.cacheRead}|${sessionStats.tokens.cacheWrite}|${sessionStats.cost ?? 0}`
+    ? `${sessionStats.tokens.input}|${sessionStats.tokens.output}|${sessionStats.tokens.cacheRead}|${sessionStats.tokens.cacheWrite}|${sessionStats.tokens.total ?? 0}|${sessionStats.cacheHitRate ?? "null"}|${sessionStats.cost ?? 0}`
     : null;
   const sessionStatsRef = useRef(sessionStats);
   sessionStatsRef.current = sessionStats;
@@ -125,6 +127,17 @@ export function ChatWindow({ session, newSessionCwd, onAgentEnd, onSessionCreate
     onContextUsageChange?.(contextUsageRef.current);
   }, [ctxKey, onContextUsageChange]);
   useEffect(() => () => { onContextUsageChange?.(null); }, [onContextUsageChange]);
+
+  // Push model info up to AppShell for upstream usage queries.
+  const modelKey = displayModelValue
+    ? `${displayModelValue.provider}:${displayModelValue.modelId}`
+    : null;
+  const displayModelRef = useRef(displayModelValue);
+  displayModelRef.current = displayModelValue;
+  useEffect(() => {
+    onModelChange?.(displayModelRef.current);
+  }, [modelKey, onModelChange]);
+  useEffect(() => () => { onModelChange?.(null); }, [onModelChange]);
 
   const onDrop = useCallback((files: File[]) => {
     if (!files.length) return;
