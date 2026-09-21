@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, ipcMain, nativeImage, shell, utilityProcess } from "electron";
+import { app, BrowserWindow, dialog, ipcMain, nativeImage, screen, shell, utilityProcess } from "electron";
 import type { UpdateInfo } from "electron-updater";
 import path from "path";
 import { appendFileSync, mkdirSync } from "fs";
@@ -299,9 +299,12 @@ function cleanup() {
 // Window
 // ---------------------------------------------------------------------------
 function createWindow() {
+  // Fit the default size within the display's work area (taskbar/dock excluded)
+  // so small screens get a maximized-feeling window instead of an overflowing one.
+  const { width: workW, height: workH } = screen.getPrimaryDisplay().workAreaSize;
   mainWindow = new BrowserWindow({
-    width: 1400,
-    height: 900,
+    width: Math.min(1680, workW),
+    height: Math.min(1024, workH),
     minWidth: 800,
     minHeight: 600,
     // Window Controls Overlay (custom title bar buttons) only exists on
