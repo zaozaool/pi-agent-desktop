@@ -52,4 +52,5 @@ test("message content helpers safely handle malformed runtime payloads", () => {
   assert.deepEqual(
     getImageContent([{ type: "image" }, { type: "image", source: {} }]),
     [{ type: "image", source: {} }],
-  );});
+  );
+});
