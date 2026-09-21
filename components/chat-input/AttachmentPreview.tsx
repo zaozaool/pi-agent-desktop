@@ -1,7 +1,8 @@
 "use client";
 
-import React from "react";
+import React, { useCallback, useState } from "react";
 import type { AttachedImage } from "./types";
+import { ImageLightbox } from "../ImageLightbox";
 
 interface AttachmentPreviewProps {
   attachedImages: AttachedImage[];
@@ -9,6 +10,15 @@ interface AttachmentPreviewProps {
 }
 
 export function AttachmentPreview({ attachedImages, onRemoveImage }: AttachmentPreviewProps) {
+  // Click a thumbnail to zoom it full-screen; arrow keys / buttons navigate
+  // across all images currently attached to the input.
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+  const closeLightbox = useCallback(() => setLightboxIndex(null), []);
+  const lightboxImages = React.useMemo(
+    () => attachedImages.map((img) => ({ src: img.previewUrl })),
+    [attachedImages]
+  );
+
   if (attachedImages.length === 0) return null;
 
   return (
@@ -19,10 +29,12 @@ export function AttachmentPreview({ attachedImages, onRemoveImage }: AttachmentP
           <img
             src={img.previewUrl}
             alt=""
-            style={{ width: 56, height: 56, objectFit: "cover", borderRadius: 6, border: "1px solid var(--border)", display: "block" }}
+            onClick={() => setLightboxIndex(i)}
+            style={{ width: 56, height: 56, objectFit: "cover", borderRadius: 6, border: "1px solid var(--border)", display: "block", cursor: "zoom-in" }}
           />
           <button
             onClick={() => onRemoveImage(i)}
+            aria-label="Remove"
             style={{
               position: "absolute", top: -4, right: -4,
               width: 16, height: 16, borderRadius: "50%",
@@ -37,6 +49,14 @@ export function AttachmentPreview({ attachedImages, onRemoveImage }: AttachmentP
           </button>
         </div>
       ))}
+      {lightboxIndex !== null && (
+        <ImageLightbox
+          images={lightboxImages}
+          index={lightboxIndex}
+          onClose={closeLightbox}
+          onNavigate={setLightboxIndex}
+        />
+      )}
     </div>
   );
 }
