@@ -1,7 +1,7 @@
 import { SessionManager, buildSessionContext as piBuildSessionContext, getAgentDir } from "@earendil-works/pi-coding-agent";
-import type { SessionEntry, SessionInfo, SessionContext, FlatTreeNode, TreeNodeEntry, AssistantMessage, SessionHeader } from "./types.ts";
+import type { SessionEntry, SessionInfo, SessionContext, FlatTreeNode, TreeNodeEntry, AssistantMessage, SessionHeader, AgentMessage, UserMessage, CustomMessage } from "./types.ts";
 import type { SessionEntry as PiSessionEntry, SessionInfo as PiSessionInfo } from "@earendil-works/pi-coding-agent";
-import { normalizeToolCalls } from "./normalize.ts";
+import { normalizeToolCalls, COMPACTION_SUMMARY_PREFIX } from "./normalize.ts";
 import { readFile } from "fs/promises";
 import { createReadStream } from "fs";
 import {
@@ -243,7 +243,7 @@ export function buildSessionContext(entries: SessionEntry[], leafId?: string | n
     if (raw.role === "compactionSummary") {
       return {
         role: "user" as const,
-        content: `*The conversation history before this point was compacted into the following summary:*\n\n${raw.summary ?? ""}`,
+        content: `${COMPACTION_SUMMARY_PREFIX}\n\n${raw.summary ?? ""}`,
         timestamp: raw.timestamp as number | undefined,
       };
     }
@@ -261,6 +261,101 @@ export function buildSessionContext(entries: SessionEntry[], leafId?: string | n
 export function getLeafId(entries: SessionEntry[]): string | null {
   if (entries.length === 0) return null;
   return entries[entries.length - 1].id;
+}
+
+/** True when a context message is the synthetic compaction-summary user message. */
+export function isCompactionSummaryMessage(msg: AgentMessage): boolean {
+  if (msg.role !== "user") return false;
+  const content = (msg as UserMessage).content;
+  const text = typeof content === "string" ? content : "";
+  return text.startsWith(COMPACTION_SUMMARY_PREFIX);
+}
+
+function toMessageTimestamp(ts: string | number | undefined): number | undefined {
+  if (ts === undefined) return undefined;
+  if (typeof ts === "number") return ts;
+  const parsed = Date.parse(ts);
+  return Number.isNaN(parsed) ? undefined : parsed;
+}
+
+/**
+ * Full-history view: every message on the leaf path WITHOUT compaction trimming.
+ *
+ * pi's compaction appends a summary entry and rebuilds context from
+ * `firstKeptEntryId`, but the original entries stay in the .jsonl. This walks the
+ * same leaf path as buildSessionContext and returns ALL of them, rendering the
+ * compaction entry as the same synthetic summary message so the boundary remains
+ * visible. Read-only viewer data — entryIds still map 1:1 to messages.
+ */
+export function buildFullContext(entries: SessionEntry[], leafId?: string | null): SessionContext {
+  const byId = new Map<string, SessionEntry>();
+  for (const e of entries) byId.set(e.id, e);
+
+  const piEntries = entries as unknown as PiSessionEntry[];
+  const piCtx = piBuildSessionContext(piEntries, leafId, byId as unknown as Map<string, PiSessionEntry>);
+
+  let targetLeaf: SessionEntry | undefined;
+  if (leafId === null) {
+    return { messages: [], entryIds: [], thinkingLevel: piCtx.thinkingLevel, model: piCtx.model };
+  }
+  if (leafId) targetLeaf = byId.get(leafId);
+  if (!targetLeaf) targetLeaf = entries[entries.length - 1];
+  if (!targetLeaf) {
+    return { messages: [], entryIds: [], thinkingLevel: piCtx.thinkingLevel, model: piCtx.model };
+  }
+
+  // Walk path from target leaf to root (same as buildSessionContext)
+  const path: SessionEntry[] = [];
+  let cur: SessionEntry | undefined = targetLeaf;
+  while (cur) {
+    path.unshift(cur);
+    cur = cur.parentId ? byId.get(cur.parentId) : undefined;
+  }
+
+  const entryIds: string[] = [];
+  const messages: AgentMessage[] = [];
+  for (const e of path) {
+    if (e.type === "message") {
+      entryIds.push(e.id);
+      messages.push(normalizeToolCalls((e as { message: AgentMessage }).message));
+    } else if (e.type === "compaction") {
+      const raw = e as unknown as { summary?: string; timestamp?: string };
+      entryIds.push(e.id);
+      messages.push({
+        role: "user",
+        content: `${COMPACTION_SUMMARY_PREFIX}\n\n${raw.summary ?? ""}`,
+        timestamp: toMessageTimestamp(raw.timestamp),
+      });
+    } else if (e.type === "branch_summary") {
+      const raw = e as unknown as { summary?: string; timestamp?: string };
+      entryIds.push(e.id);
+      messages.push({
+        role: "user",
+        content: `*Branch point — the conversation continues from an earlier message. Branch summary:*
+\n${raw.summary ?? ""}`,
+        timestamp: toMessageTimestamp(raw.timestamp),
+      });
+    } else if (e.type === "custom_message") {
+      const raw = e as unknown as {
+        customType: string;
+        content: CustomMessage["content"];
+        display?: boolean;
+        details?: unknown;
+        timestamp?: string;
+      };
+      entryIds.push(e.id);
+      messages.push({
+        role: "custom",
+        customType: raw.customType,
+        content: raw.content,
+        display: raw.display ?? true,
+        details: raw.details,
+        timestamp: toMessageTimestamp(raw.timestamp),
+      });
+    }
+  }
+
+  return { messages, entryIds, thinkingLevel: piCtx.thinkingLevel, model: piCtx.model };
 }
 
 export async function getSessionEntriesAsync(filePath: string): Promise<SessionEntry[]> {

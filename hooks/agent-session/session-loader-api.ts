@@ -25,3 +25,13 @@ export async function fetchContext(sid: string, leafId: string | null): Promise<
   }
   return res.json() as Promise<{ context: { messages: AgentMessage[]; entryIds: string[] } }>;
 }
+
+/** Full-history view: every message on the leaf path, including pre-compaction. */
+export async function fetchFullContext(sid: string): Promise<{ context: { messages: AgentMessage[]; entryIds: string[] } }> {
+  const url = `/api/sessions/${encodeURIComponent(sid)}/context?full=1`;
+  const res = await fetch(url);
+  if (!res.ok) {
+    throw new Error(`HTTP ${res.status}`);
+  }
+  return res.json() as Promise<{ context: { messages: AgentMessage[]; entryIds: string[] } }>;
+}

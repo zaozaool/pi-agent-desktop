@@ -28,3 +28,14 @@ export function normalizeToolCalls(msg: AgentMessage): AgentMessage {
   });
   return { ...msg, content: normalized };
 }
+
+/** Prefix used by pi (and our context builders) for the synthetic compaction-summary user message. */
+export const COMPACTION_SUMMARY_PREFIX = "*The conversation history before this point was compacted into the following summary:*";
+
+/** True when a context message is the synthetic compaction-summary user message. */
+export function isCompactionSummaryMessage(msg: AgentMessage): boolean {
+  if (msg.role !== "user") return false;
+  const content = (msg as { content?: unknown }).content;
+  const text = typeof content === "string" ? content : "";
+  return text.startsWith(COMPACTION_SUMMARY_PREFIX);
+}

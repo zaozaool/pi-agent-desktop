@@ -11,11 +11,13 @@ import { ProjectTrustDialog } from "./ProjectTrustDialog";
 import { ExecutePlanBar } from "./ExecutePlanBar";
 import { ChatMinimap, useMessageRefs } from "./ChatMinimap";
 import { BranchCloneModal, type BranchCloneMode } from "./BranchCloneModal";
+import { FullHistoryModal } from "./FullHistoryModal";
 import { useAgentSession } from "@/hooks/useAgentSession";
 import { useAudio } from "@/hooks/useAudio";
 import { AgentThinkingOrb } from "./AgentThinkingOrb";
 import { useDragDrop } from "@/hooks/useDragDrop";
 import { formatDroppedPathMentions, getDroppedFilePath } from "@/lib/file-paths";
+import { isCompactionSummaryMessage } from "@/lib/normalize";
 import { SessionSearchBar } from "./SessionSearchBar";
 import { findSessionMatches } from "@/lib/session-search";
 import { useI18n } from "./I18nProvider";
@@ -250,6 +252,12 @@ export function ChatWindow({ session, newSessionCwd, onAgentEnd, onSessionCreate
     return m;
   }, [messages]);
 
+  const hasCompaction = useMemo(
+    () => messages.some((msg) => isCompactionSummaryMessage(msg)),
+    [messages]
+  );
+  const [fullHistoryOpen, setFullHistoryOpen] = useState(false);
+
   const { activeThinking, visibleStreamingMessage } = useMemo(
     () => splitActiveThinking(streamState.streamingMessage),
     [streamState.streamingMessage]
@@ -462,6 +470,20 @@ export function ChatWindow({ session, newSessionCwd, onAgentEnd, onSessionCreate
         <div ref={setScrollContainer} className="flex-1 overflow-y-auto pt-4 pb-6 [scrollbar-width:none]">
           <div className="mx-auto max-w-[1024px] px-4">
 
+            {hasCompaction && (
+              <button
+                type="button"
+                onClick={() => setFullHistoryOpen(true)}
+                className="mb-3 w-full flex items-center justify-center gap-2 rounded-control border border-border bg-bg-panel px-3 py-1.5 text-[12px] text-text-muted transition-[background-color,color,border-color] duration-150 hover:bg-bg-hover hover:text-text cursor-pointer"
+              >
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M3 12a9 9 0 1 0 9-9" />
+                  <polyline points="3 4 3 9 8 9" />
+                </svg>
+                {t("chat.viewFullHistory")}
+              </button>
+            )}
+
             <MessageList
               messages={messages}
               entryIds={entryIds}
@@ -526,6 +548,11 @@ export function ChatWindow({ session, newSessionCwd, onAgentEnd, onSessionCreate
         onSuccess={(newSessionId) => {
           onSessionForked?.(newSessionId);
         }}
+      />
+      <FullHistoryModal
+        isOpen={fullHistoryOpen}
+        onClose={() => setFullHistoryOpen(false)}
+        sessionId={session?.id ?? null}
       />
     </div>
   );
