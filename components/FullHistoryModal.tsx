@@ -1,9 +1,10 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useI18n } from "./I18nProvider";
 import { ModalSurface } from "./ModalSurface";
 import { MessageView } from "./MessageView";
+import { ChatMinimap, useMessageRefs } from "./ChatMinimap";
 import { fetchFullContext } from "@/hooks/agent-session/session-loader-api";
 import type { AgentMessage, ToolResultMessage } from "@/lib/types";
 
@@ -24,6 +25,7 @@ export function FullHistoryModal({ isOpen, onClose, sessionId }: FullHistoryModa
   const [entryIds, setEntryIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const scrollRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (!isOpen || !sessionId) return;
@@ -68,11 +70,16 @@ export function FullHistoryModal({ isOpen, onClose, sessionId }: FullHistoryModa
     return m;
   }, [messages]);
 
+  // Minimap refs are indexed by user/assistant message ordinal (same as MessageList).
+  const messageRefs = useMessageRefs(messages?.length ?? 0);
+
   if (!isOpen) return null;
+
+  let refIdx = 0;
 
   return (
     <ModalSurface
-      panelClassName="t-modal is-open ui-dialog-surface w-full max-w-4xl h-[85vh] rounded-[14px] flex flex-col overflow-hidden"
+      panelClassName="t-modal is-open ui-dialog-surface w-[70vw] h-[90vh] rounded-[14px] flex flex-col overflow-hidden"
       ariaLabelledBy="full-history-modal-title"
     >
       {/* Header */}
@@ -90,30 +97,56 @@ export function FullHistoryModal({ isOpen, onClose, sessionId }: FullHistoryModa
       </div>
 
       {/* Body */}
-      <div className="flex-1 overflow-y-auto px-4 py-4">
-        {loading && (
-          <div className="text-[13px] text-text-muted py-8 text-center">{t("chat.fullHistoryLoading")}</div>
-        )}
-        {!loading && error && (
-          <div className="p-2.5 rounded-control bg-red-500/10 border border-red-500/20 text-red-400 text-[12px]">
-            {t("chat.fullHistoryError")}: {error}
-          </div>
-        )}
-        {!loading && !error && messages && (
-          <div className="flex flex-col gap-1">
-            {messages.map((msg, idx) => (
-              <MessageView
-                key={entryIds[idx] ?? `idx-${idx}`}
-                message={msg}
-                toolResults={toolResultsMap}
-                entryId={entryIds[idx]}
-                showTimestamp
-              />
-            ))}
-            {messages.length === 0 && (
-              <div className="text-[13px] text-text-muted py-8 text-center">{t("chat.fullHistoryEmpty")}</div>
-            )}
-          </div>
+      <div className="flex-1 flex overflow-hidden min-h-0">
+        <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4">
+          {loading && (
+            <div className="text-[13px] text-text-muted py-8 text-center">{t("chat.fullHistoryLoading")}</div>
+          )}
+          {!loading && error && (
+            <div className="p-2.5 rounded-control bg-red-500/10 border border-red-500/20 text-red-400 text-[12px]">
+              {t("chat.fullHistoryError")}: {error}
+            </div>
+          )}
+          {!loading && !error && messages && (
+            <div className="flex flex-col gap-1">
+              {messages.map((msg, idx) => {
+                const view = (
+                  <MessageView
+                    message={msg}
+                    toolResults={toolResultsMap}
+                    entryId={entryIds[idx]}
+                    showTimestamp
+                  />
+                );
+                if (msg.role !== "user" && msg.role !== "assistant") {
+                  return <div key={entryIds[idx] ?? `idx-${idx}`}>{view}</div>;
+                }
+                const currentRefIdx = refIdx++;
+                return (
+                  <div
+                    key={entryIds[idx] ?? `idx-${idx}`}
+                    ref={(el) => {
+                      messageRefs.current[currentRefIdx] = el;
+                    }}
+                    style={{ contentVisibility: "auto", containIntrinsicSize: "auto 150px" }}
+                  >
+                    {view}
+                  </div>
+                );
+              })}
+              {messages.length === 0 && (
+                <div className="text-[13px] text-text-muted py-8 text-center">{t("chat.fullHistoryEmpty")}</div>
+              )}
+            </div>
+          )}
+        </div>
+        {messages && messages.length > 0 && (
+          <ChatMinimap
+            messages={messages}
+            streamingMessage={null}
+            scrollContainer={scrollRef}
+            messageRefs={messageRefs}
+          />
         )}
       </div>
     </ModalSurface>
