@@ -109,6 +109,13 @@ export function ensureStandalonePiRuntime(projectRoot) {
   const visited = new Set();
   let copied = 0;
 
+  // Repair traced external stubs BEFORE the main closure loop: a repaired
+  // top-level package resolves its dependencies from the standalone's
+  // top-level node_modules, so its dependency closure must be seeded into
+  // the queue now (the closure may resolve to hoisted copies that the
+  // pi-package roots alone never touch).
+  const repaired = repairHashedExternalLinks(standaloneNodeModules, sourceNodeModules, queue);
+
   while (queue.length > 0) {
     const item = queue.shift();
     if (!item.directory) {
@@ -159,7 +166,6 @@ export function ensureStandalonePiRuntime(projectRoot) {
   }
 
   const flattened = flattenEscapingSymlinks(join(projectRoot, ".next", "standalone"));
-  const repaired = repairHashedExternalLinks(standaloneNodeModules, sourceNodeModules);
 
   // Safety net: fail the build early if any symlink still points outside the
   // standalone, so this surfaces as a clear message instead of a cryptic
@@ -179,9 +185,11 @@ export function ensureStandalonePiRuntime(projectRoot) {
  * a package.json-only stub when the complete copy lives nested under a
  * dependency (npm's layout), which makes the hashed import fail at runtime
  * (ERR_MODULE_NOT_FOUND). Force-copy the complete package from the repo's
- * node_modules onto each hashed link's resolution target.
+ * node_modules onto each hashed link's resolution target, and enqueue the
+ * package's dependency closure so the imports it performs at runtime can be
+ * resolved from the standalone's node_modules too.
  */
-export function repairHashedExternalLinks(standaloneNodeModules, sourceNodeModules) {
+export function repairHashedExternalLinks(standaloneNodeModules, sourceNodeModules, queue = []) {
   // Links live under <standalone>/.next/node_modules (Next's own dir), not
   // under the standalone's node_modules.
   const hashedRoot = join(dirname(standaloneNodeModules), ".next", "node_modules");
@@ -200,6 +208,21 @@ export function repairHashedExternalLinks(standaloneNodeModules, sourceNodeModul
 
         const sourceDirectory = join(sourceNodeModules, relTarget);
         if (!existsSync(join(sourceDirectory, "package.json"))) continue;
+
+        // The main closure loop only seeds dependencies of the pi package
+        // roots. A top-level external package (e.g. @earendil-works/pi-mcp
+        // nested inside pi-coding-agent) resolves imports from the standalone
+        // top level, so its dependencies must be copied there as well. Enqueue
+        // unconditionally: the visited set keeps re-runs cheap, and a package
+        // repaired by an earlier build may still be missing deps here.
+        const manifest = readManifest(sourceDirectory);
+        for (const dependency of [...Object.keys(manifest.dependencies ?? {}), ...Object.keys(manifest.optionalDependencies ?? {})]) {
+          queue.push({
+            name: dependency,
+            directory: packageDirectory(dependency, sourceDirectory),
+            required: true,
+          });
+        }
 
         // Already complete? Avoid pointless large copies on re-runs.
         if (directoryContentsMatch(sourceDirectory, resolvedTarget)) continue;

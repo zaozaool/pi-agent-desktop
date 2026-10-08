@@ -70,7 +70,9 @@ test("repairs package.json-only traced external stubs behind hashed links", () =
   //   <root>/standalone/.next/node_modules/<pkg>-<hash> -> ../../../node_modules/<pkg>
   const dir = join(tmpdir(), `pi-runtime-test-${process.pid}-${Date.now()}`);
   mkdirSync(join(dir, "repo", "node_modules", "@scope", "pkg", "dist"), { recursive: true });
-  writeFileSync(join(dir, "repo", "node_modules", "@scope", "pkg", "package.json"), "{}");
+  writeFileSync(join(dir, "repo", "node_modules", "@scope", "pkg", "package.json"), '{"dependencies":{"dep":"1.0.0"}}');
+  mkdirSync(join(dir, "repo", "node_modules", "dep"), { recursive: true });
+  writeFileSync(join(dir, "repo", "node_modules", "dep", "package.json"), "{}");
   writeFileSync(join(dir, "repo", "node_modules", "@scope", "pkg", "dist", "index.js"), "export {};\n");
 
   const standaloneNodeModules = join(dir, "standalone", "node_modules");
@@ -85,9 +87,11 @@ test("repairs package.json-only traced external stubs behind hashed links", () =
   );
 
   try {
-    const repaired = repairHashedExternalLinks(standaloneNodeModules, join(dir, "repo", "node_modules"));
+    const queue = [];
+    const repaired = repairHashedExternalLinks(standaloneNodeModules, join(dir, "repo", "node_modules"), queue);
     assert.equal(repaired, 1);
     assert.ok(existsSync(join(standaloneNodeModules, "@scope", "pkg", "dist", "index.js")), "stub must be replaced by full copy");
+    assert.deepEqual(queue.map((q) => q.name), ["dep"], "package deps must be seeded into the closure queue");
 
     // Idempotent: a complete copy is not re-copied.
     assert.equal(repairHashedExternalLinks(standaloneNodeModules, join(dir, "repo", "node_modules")), 0);
