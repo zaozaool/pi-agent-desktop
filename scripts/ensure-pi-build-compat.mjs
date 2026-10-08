@@ -68,16 +68,23 @@ function patchConfigQuickJSWasmPath() {
   const target = join(piRoot, "dist", "config.js");
   if (!existsSync(target)) return false;
   const src = readFileSync(target, "utf8");
-  const needle =
-    'return embeddedQuickJSWasmPath ?? createRequire(import.meta.url).resolve("quickjs-wasi/quickjs.wasm");';
-  if (!src.includes(needle)) return false; // already patched or upstream changed
+  // pi <= 0.99: `return embeddedQuickJSWasmPath ?? createRequire(...)...`
+  // pi >= 1.0: `quickJSWasmPath ??= createRequire(...)...`
+  const needles = [
+    'return embeddedQuickJSWasmPath ?? createRequire(import.meta.url).resolve("quickjs-wasi/quickjs.wasm");',
+    'quickJSWasmPath ??= createRequire(import.meta.url).resolve("quickjs-wasi/quickjs.wasm");',
+  ];
+  const needle = needles.find((n) => src.includes(n));
+  if (!needle) return false; // already patched or upstream changed
   const replacement = [
     "// Build-compat patch (scripts/ensure-pi-build-compat.mjs): Turbopack statically",
     "// analyzes `createRequire(import.meta.url).resolve(<literal>)` and would pull",
     "// quickjs.wasm into the bundle as an unresolvable loader. A dynamic specifier",
     "// resolves identically at runtime but is invisible to static analysis.",
     'const __quickjsWasmSpecifier = ["quickjs-wasi", "quickjs.wasm"].join("/");',
-    "return embeddedQuickJSWasmPath ?? createRequire(import.meta.url).resolve(__quickjsWasmSpecifier);",
+    ...(needle === needles[0]
+      ? ["return embeddedQuickJSWasmPath ?? createRequire(import.meta.url).resolve(__quickjsWasmSpecifier);"]
+      : ["quickJSWasmPath ??= createRequire(import.meta.url).resolve(__quickjsWasmSpecifier);"]),
   ].join("\n");
   writeFileSync(target, src.replace(needle, replacement));
   return true;
