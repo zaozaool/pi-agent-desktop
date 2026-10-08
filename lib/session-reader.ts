@@ -1,4 +1,4 @@
-import { SessionManager, buildSessionProjection, getAgentDir } from "@earendil-works/pi-coding-agent";
+import { SessionManager, buildSessionProjection, buildSessionContext as piBuildSessionContext, getAgentDir } from "@earendil-works/pi-coding-agent";
 import type { SessionEntry, SessionInfo, SessionContext, FlatTreeNode, TreeNodeEntry, AssistantMessage, SessionHeader, AgentMessage, UserMessage, CustomMessage } from "./types.ts";
 import type { SessionEntry as PiSessionEntry, SessionInfo as PiSessionInfo } from "@earendil-works/pi-coding-agent";
 import { normalizeToolCalls, COMPACTION_SUMMARY_PREFIX } from "./normalize.ts";

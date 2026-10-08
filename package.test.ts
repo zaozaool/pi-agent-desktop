@@ -7,7 +7,9 @@ const pkg = JSON.parse(readFileSync(new URL("./package.json", import.meta.url), 
 };
 
 test("build scripts name the standalone Next.js build explicitly", () => {
-  assert.match(pkg.scripts["build:standalone"], /^next build\b/);
+  // run-next-build.mjs wraps `next build` to strip the embedded app's leaked
+  // __NEXT_PRIVATE_STANDALONE_CONFIG env (see scripts/run-next-build.mjs).
+  assert.match(pkg.scripts["build:standalone"], /run-next-build\.mjs/);
   assert.match(
     pkg.scripts["build:standalone"],
     /ensure-standalone-next-runtimes\.mjs/
