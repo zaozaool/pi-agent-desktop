@@ -159,6 +159,7 @@ export function ensureStandalonePiRuntime(projectRoot) {
   }
 
   const flattened = flattenEscapingSymlinks(join(projectRoot, ".next", "standalone"));
+  const repaired = repairHashedExternalLinks(standaloneNodeModules, sourceNodeModules);
 
   // Safety net: fail the build early if any symlink still points outside the
   // standalone, so this surfaces as a clear message instead of a cryptic
@@ -168,7 +169,65 @@ export function ensureStandalonePiRuntime(projectRoot) {
     throw new Error(`symlinks escaping the standalone remain: ${escaping.join(", ")}`);
   }
 
-  return { copied, flattened };
+  return { copied, flattened, repaired };
+}
+
+/**
+ * Next.js traces externalized imports ("serverExternalPackages" / Turbopack
+ * hashed externals) as symlinks under .next/node_modules/<name>-<hash> that
+ * point into the standalone's top-level node_modules. The traced target can be
+ * a package.json-only stub when the complete copy lives nested under a
+ * dependency (npm's layout), which makes the hashed import fail at runtime
+ * (ERR_MODULE_NOT_FOUND). Force-copy the complete package from the repo's
+ * node_modules onto each hashed link's resolution target.
+ */
+export function repairHashedExternalLinks(standaloneNodeModules, sourceNodeModules) {
+  // Links live under <standalone>/.next/node_modules (Next's own dir), not
+  // under the standalone's node_modules.
+  const hashedRoot = join(dirname(standaloneNodeModules), ".next", "node_modules");
+  if (!existsSync(hashedRoot)) return 0;
+
+  let repaired = 0;
+  const visit = (dir) => {
+    for (const entry of readdirSync(dir)) {
+      const linkPath = join(dir, entry);
+      if (lstatSync(linkPath).isSymbolicLink()) {
+        const target = readlinkSync(linkPath);
+        if (target.startsWith("/")) continue;
+        const resolvedTarget = resolve(dirname(linkPath), target);
+        const relTarget = relative(standaloneNodeModules, resolvedTarget);
+        if (relTarget.startsWith("..") || relTarget === "") continue;
+
+        const sourceDirectory = join(sourceNodeModules, relTarget);
+        if (!existsSync(join(sourceDirectory, "package.json"))) continue;
+
+        // Already complete? Avoid pointless large copies on re-runs.
+        if (directoryContentsMatch(sourceDirectory, resolvedTarget)) continue;
+
+        rmSync(resolvedTarget, { recursive: true, force: true });
+        cpSync(sourceDirectory, resolvedTarget, { recursive: true, force: true });
+        repaired += 1;
+      } else if (lstatSync(linkPath).isDirectory()) {
+        visit(linkPath);
+      }
+    }
+  };
+  visit(hashedRoot);
+  return repaired;
+}
+
+/**
+ * Cheap completeness check: every top-level entry present in the source
+ * package directory must also exist in the standalone copy. A traced stub
+ * (package.json only) fails this immediately, while a previously repaired
+ * full copy passes without comparing file contents.
+ */
+function directoryContentsMatch(sourceDirectory, targetDirectory) {
+  if (!existsSync(targetDirectory)) return false;
+  for (const entry of readdirSync(sourceDirectory)) {
+    if (!existsSync(join(targetDirectory, entry))) return false;
+  }
+  return true;
 }
 
 function flattenEscapingSymlinksDryRun(rootDirInput) {
@@ -204,9 +263,10 @@ function flattenEscapingSymlinksDryRun(rootDirInput) {
 
 if (fileURLToPath(import.meta.url) === resolve(process.argv[1])) {
   try {
-    const { copied, flattened } = ensureStandalonePiRuntime(process.cwd());
+    const { copied, flattened, repaired } = ensureStandalonePiRuntime(process.cwd());
     console.log(`ensure-standalone-pi-runtime: copied ${copied} runtime packages`);
     console.log(`ensure-standalone-pi-runtime: flattened ${flattened.length} escaping symlinks`);
+    console.log(`ensure-standalone-pi-runtime: repaired ${repaired} traced external stubs`);
   } catch (error) {
     console.error(`ensure-standalone-pi-runtime: ${error instanceof Error ? error.message : String(error)}`);
     process.exitCode = 1;
