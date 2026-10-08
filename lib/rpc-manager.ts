@@ -1,7 +1,7 @@
 import { existsSync } from "fs";
 import { unlink } from "fs/promises";
 import { randomUUID } from "node:crypto";
-import { createAgentSession, SessionManager } from "@earendil-works/pi-coding-agent";
+import { createAgentSession, createCodemodeExtension, createMcpExtension, createToolSearchExtension, SessionManager } from "@earendil-works/pi-coding-agent";
 import { cacheSessionPath, invalidateSessionPathCache } from "./session-reader.ts";
 import type { AgentSessionLike, ToolInfo } from "./pi-types";
 import {
@@ -16,12 +16,13 @@ import {
 } from "./approval-policy.ts";
 import { ExtensionUiBridge } from "./extension-ui-bridge.ts";
 import { desktopApprovalInlineExtension, type AgentModeRef } from "./desktop-approval-extension.ts";
-import { noToolsPromptInlineExtension } from "./desktop-system-prompt-extension.ts";
 import {
   desktopLtmInlineExtension,
   withMemoryTools,
 } from "./desktop-ltm-extension.ts";
 import { readDesktopSettings } from "./desktop-settings.ts";
+import { desktopRuntimeTools } from "./desktop-runtime-tools.ts";
+import { loadDesktopMcpConfig } from "./mcp-config.ts";
 import { findLastAgentMode } from "./agent-mode-persistence.ts";
 import {
   branchEntriesToMessagesText,
@@ -72,6 +73,9 @@ export class AgentSessionWrapper {
   private followUpQueue = new FollowUpQueue();
   private pendingAgentEnd: AgentEvent | null = null;
   private suppressQueuedDispatchOnSettled = false;
+  private resourcesChanged = false;
+  private reloadingResources = false;
+  private pendingCodemode: boolean | undefined;
 
   readonly inner: AgentSessionLike;
 
@@ -110,10 +114,12 @@ export class AgentSessionWrapper {
     return this._modeRef;
   }
 
-  initPolicy(mode: AgentMode, preset: ToolPreset): void {
+  initPolicy(mode: AgentMode, preset: ToolPreset, codemodeEnabled = false): void {
     this._agentMode = mode;
     this._toolPreset = preset;
     this._modeRef.current = mode;
+    this._modeRef.toolPreset = preset;
+    this._modeRef.codemodeEnabled = codemodeEnabled;
     if (mode === "plan") {
       this._toolPresetBeforePlan = preset;
     }
@@ -129,11 +135,36 @@ export class AgentSessionWrapper {
     }
     this._agentMode = mode;
     this._modeRef.current = mode;
-    const tools = withMemoryTools(effectiveToolsForMode(mode, this._toolPreset), mode);
+    this._modeRef.toolPreset = this._toolPreset;
+    const tools = desktopRuntimeTools(mode, this._toolPreset, this._modeRef.codemodeEnabled ?? false, this.inner.getAllTools(), this.inner.getActiveToolNames());
     this.inner.setActiveToolsByName(tools);
-    if (tools.length === 0) {
-      const state = this.inner.agent?.state as { systemPrompt?: string } | undefined;
-      if (state) state.systemPrompt = "";
+  }
+  setCodemodeEnabled(enabled: boolean): void {
+    if (this.inner.isStreaming || this.pendingAgentEnd) {
+      this.pendingCodemode = enabled;
+      return;
+    }
+    this._modeRef.codemodeEnabled = enabled;
+    this.applyAgentMode(this._agentMode);
+  }
+
+  requestResourceReload(): void {
+    this.resourcesChanged = true;
+  }
+
+  private async reloadResources(): Promise<void> {
+    if (this.reloadingResources) throw new Error("Session is reloading");
+    if (!this.resourcesChanged || !this.inner.reload) return;
+    this.reloadingResources = true;
+    this.resourcesChanged = false;
+    try {
+      await this.inner.reload();
+      this.applyAgentMode(this._agentMode);
+    } catch (error) {
+      this.resourcesChanged = true;
+      throw error;
+    } finally {
+      this.reloadingResources = false;
     }
   }
   setAgentMode(mode: AgentMode): void {
@@ -227,10 +258,8 @@ export class AgentSessionWrapper {
     const snapshot = this.emitFollowUpQueue(claimed.snapshot);
     const { item } = claimed;
     try {
-      const prompt = this.inner.prompt(
-        item.message,
-        item.images?.length ? { images: item.images } : undefined,
-      );
+      const run = () => this.inner.prompt(item.message, item.images?.length ? { images: item.images } : undefined);
+      const prompt = this.resourcesChanged ? this.reloadResources().then(run) : run();
       void prompt.catch((error) => this.handleQueuedPromptFailure(item, completedEvent, error));
     } catch (error) {
       this.handleQueuedPromptFailure(item, completedEvent, error);
@@ -239,6 +268,11 @@ export class AgentSessionWrapper {
   }
 
   private handleAgentSettled(): void {
+    if (this.pendingCodemode !== undefined) {
+      this._modeRef.codemodeEnabled = this.pendingCodemode;
+      this.pendingCodemode = undefined;
+      this.applyAgentMode(this._agentMode);
+    }
     const completedEvent = this.pendingAgentEnd;
     this.pendingAgentEnd = null;
 
@@ -339,7 +373,7 @@ export class AgentSessionWrapper {
                 : null,
           }
         : null,
-      systemPrompt: this.inner.agent.state?.systemPrompt ?? "",
+      systemPrompt: this._toolPreset === "none" && this._agentMode !== "plan" ? "" : this.inner.agent.state?.systemPrompt ?? "",
       thinkingLevel: this.inner.agent.state?.thinkingLevel ?? "off",
       agentMode: this._agentMode,
       toolPreset: this._toolPreset,
@@ -373,7 +407,8 @@ export class AgentSessionWrapper {
         // after a dropped agent_end) must not start a second agent loop in
         // parallel with the in-flight one. Reject deterministically here
         // instead of relying on pi's internal isStreaming handling.
-        if (this.inner.isStreaming) throw new Error("Session is streaming");
+        if (this.inner.isStreaming || this.reloadingResources) throw new Error("Session is streaming or reloading");
+        if (this.resourcesChanged) await this.reloadResources();
         this.suppressQueuedDispatchOnSettled = false;
         // Fire and forget — events come via subscribe
         const promptImages = command.images as Array<{ type: "image"; data: string; mimeType: string }> | undefined;
@@ -579,14 +614,8 @@ export class AgentSessionWrapper {
       case "set_tools": {
         const toolNames = (command.toolNames as string[]) ?? [];
         this._toolPreset = this.inferPresetFromTools(toolNames);
-        if (this._agentMode === "plan") {
-          this._toolPresetBeforePlan = this._toolPreset;
-          this.inner.setActiveToolsByName(
-            withMemoryTools([...effectiveToolsForMode("plan", this._toolPreset)], "plan")
-          );
-        } else {
-          this.inner.setActiveToolsByName(withMemoryTools(toolNames, this._agentMode));
-        }
+        if (this._agentMode === "plan") this._toolPresetBeforePlan = this._toolPreset;
+        this.applyAgentMode(this._agentMode);
         return null;
       }
 
@@ -684,6 +713,16 @@ export class AgentSessionWrapper {
       console.error("Error destroying UI bridge:", err);
     }
     this._uiBridge = null;
+    try {
+      await this.inner.extensionRunner?.emit({ type: "session_shutdown", reason: "quit" });
+    } catch (err) {
+      console.error("Error shutting down extensions:", err);
+    }
+    try {
+      this.inner.dispose?.();
+    } catch (err) {
+      console.error("Error disposing inner agent session:", err);
+    }
     for (const cb of this.onDestroyCallbacks) {
       try {
         await cb();
@@ -785,6 +824,16 @@ export function getRunningSessionIds(): string[] {
   return running;
 }
 
+export function updateSessionCodemode(enabled: boolean): void {
+  for (const session of getRegistry().values()) session.setCodemodeEnabled(enabled);
+}
+
+export function requestSessionResourceReload(cwd?: string): void {
+  for (const session of getRegistry().values()) {
+    if (!cwd || session.inner.sessionManager.getHeader()?.cwd === cwd) session.requestResourceReload();
+  }
+}
+
 /**
  * Get or create an AgentSession for the given session.
  * For new sessions (sessionFile === ""), pi generates its own id.
@@ -840,43 +889,41 @@ export async function startRpcSession(
       agentMode
     );
 
-    const modeRef: AgentModeRef = { current: agentMode };
+    const modeRef: AgentModeRef = { current: agentMode, toolPreset, codemodeEnabled: desktop.codemodeEnabled ?? false };
     const resourceLoader = new DefaultResourceLoader({
       cwd,
       agentDir,
       extensionFactories: [
+        createCodemodeExtension({ mode: "on" }),
+        createToolSearchExtension(),
+        createMcpExtension({ loadConfig: (ctx) => loadDesktopMcpConfig(agentDir, ctx.cwd, ctx.isProjectTrusted()) }),
         desktopApprovalInlineExtension(modeRef),
         desktopLtmInlineExtension({ getCwd: () => cwd }),
-        noToolsPromptInlineExtension(),
       ],
     });
     await resourceLoader.reload();
-
-    // Pi 0.82+: empty tools allowlist is expressed via noTools: "all"
-    const createOptions =
-      effectiveTools.length === 0 ? { noTools: "all" as const } : { tools: effectiveTools };
 
     const { session: inner } = await createAgentSession({
       cwd,
       agentDir,
       sessionManager,
       resourceLoader,
-      ...createOptions,
+      // Keep the registry open for MCP tools discovered after session_start.
+      // Desktop policy selects declarations and checks every execution.
+      noTools: "builtin",
     });
 
     if (effectiveTools.length > 0) {
-      inner.setActiveToolsByName(effectiveTools);
+      inner.setActiveToolsByName([...effectiveTools, ...inner.getActiveToolNames()]);
     }
 
-    // When all tools are disabled, the no-tools inline extension clears the system
-    // prompt via before_agent_start + forceSystemPrompt (pi 0.86+: the prompt is
-    // re-derived at prompt time, so mutating agent.state.systemPrompt is impossible
-    // and would be overwritten anyway).
+    // Pi 0.87+ systemPrompt is read-only. The desktop before_agent_start hook
+    // supplies an empty prompt when the tool preset is none.
 
     // AgentSession is structurally compatible with AgentSessionLike; cast keeps
     // our thin facade free of full ExtensionUIContext coupling.
     const wrapper = new AgentSessionWrapper(inner as unknown as AgentSessionLike, { modeRef });
-    wrapper.initPolicy(agentMode, toolPreset);
+    wrapper.initPolicy(agentMode, toolPreset, desktop.codemodeEnabled ?? false);
 
     const bridge = new ExtensionUiBridge((event) => {
       wrapper.emitEvent(event);
@@ -889,6 +936,7 @@ export async function startRpcSession(
         mode: "rpc",
       });
     }
+    wrapper.applyAgentMode(agentMode);
 
     wrapper.start();
 
