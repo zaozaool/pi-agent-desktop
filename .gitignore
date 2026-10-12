@@ -66,3 +66,5 @@ nul
 bun.lock
 
 .idea/
+# ling-ui-design / image-gen working files (references, layers, crops, captures)
+/artifacts/
