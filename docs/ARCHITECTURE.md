@@ -258,7 +258,6 @@ pi-agent-desktop/
 │   ├── npx.ts                    安全 npx 调用（绕过 CVE-2024-27980）
 │   ├── api-error.ts              API 错误格式化
 │   ├── tool-presets.ts           工具预设常量与 getPresetFromTools
-│   ├── custom-path-selection.ts  自定义路径选择
 │   ├── ayu-syntax-theme.ts       ayu 语法高亮主题
 │   └── panel-layout.js           侧边栏宽度计算（CJS，构建兼容）
 │
