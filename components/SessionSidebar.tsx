@@ -197,7 +197,7 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
 
   return (
     <div className="sidebar-workspace">
-      <SidebarHeader onAddProject={addProject} loadSessions={loadSessions} sessionRefreshDone={sessionRefreshDone} searchQuery={searchQuery} onSearchQueryChange={setSearchQuery} sortMode={preferences.sortMode} onSortModeChange={(sortMode, animate) => {
+      <SidebarHeader selectedCwd={selectedCwd ?? projects[0]?.cwd ?? null} onNewSession={newSession} onAddProject={addProject} loadSessions={loadSessions} sessionRefreshDone={sessionRefreshDone} searchQuery={searchQuery} onSearchQueryChange={setSearchQuery} sortMode={preferences.sortMode} onSortModeChange={(sortMode, animate) => {
         setAnimateProjectSorting(animate);
         setPreferences((previous) => ({ ...previous, sortMode }));
       }} />

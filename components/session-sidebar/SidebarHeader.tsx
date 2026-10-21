@@ -10,6 +10,8 @@ import { useI18n } from "../I18nProvider";
 import { useDismissOnOutsideClick } from "@/hooks/useDismissOnOutsideClick";
 
 interface SidebarHeaderProps {
+  selectedCwd: string | null;
+  onNewSession: (cwd: string) => void;
   onAddProject: (cwd: string) => void;
   loadSessions: () => Promise<void>;
   sessionRefreshDone: boolean;
@@ -19,7 +21,7 @@ interface SidebarHeaderProps {
   onSortModeChange: (mode: ProjectSortMode, animate: boolean) => void;
 }
 
-export function SidebarHeader({ onAddProject, loadSessions, sessionRefreshDone, searchQuery, onSearchQueryChange, sortMode, onSortModeChange }: SidebarHeaderProps) {
+export function SidebarHeader({ selectedCwd, onNewSession, onAddProject, loadSessions, sessionRefreshDone, searchQuery, onSearchQueryChange, sortMode, onSortModeChange }: SidebarHeaderProps) {
   const { t } = useI18n();
   const [menuOpen, setMenuOpen] = useState(false);
   const [picking, setPicking] = useState(false);
@@ -63,6 +65,15 @@ export function SidebarHeader({ onAddProject, loadSessions, sessionRefreshDone, 
     <header className="sidebar-header">
       <div className="sidebar-title-row">
         <PiAgentTitle />
+        <button
+          className="sidebar-new-session-button"
+          onClick={() => selectedCwd && onNewSession(selectedCwd)}
+          disabled={!selectedCwd}
+          title={selectedCwd ? t("sidebar.newSessionIn", { path: selectedCwd }) : t("sidebar.selectProjectFirst")}
+        >
+          <SidebarIcon name="plus" size={14} />
+          {t("sidebar.newSession")}
+        </button>
       </div>
       <div className="sidebar-search">
         <SidebarIcon name="search" size={14} />
