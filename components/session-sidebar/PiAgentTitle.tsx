@@ -97,10 +97,10 @@ export function PiAgentTitle() {
       </svg>
       {showVersion && (
         <span className="flex flex-col items-start leading-tight min-w-0">
-          <span className="font-bold text-[13px] tracking-normal font-mono text-accent whitespace-nowrap">
+          <span className="font-bold text-[11px] tracking-normal font-mono text-accent whitespace-nowrap">
             {displayPi}
           </span>
-          <span className="font-medium text-[11px] tracking-normal font-mono text-text-dim whitespace-nowrap">
+          <span className="font-medium text-[9px] tracking-normal font-mono text-text-dim whitespace-nowrap">
             {displayApp}
           </span>
         </span>

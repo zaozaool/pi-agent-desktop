@@ -1040,16 +1040,6 @@ span.linenumber {
 .sidebar-header { flex-shrink: 0; padding: 14px 12px 0; position: relative; z-index: 3; }
 .sidebar-title-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 28px; }
 .sidebar-title-row .pi-agent-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: inherit; font-size: 13px; font-weight: 600; text-align: left; }
-.sidebar-new-session-button {
-  display: inline-flex; align-items: center; justify-content: center; gap: 4px;
-  min-height: 28px; padding: 0 8px; margin-left: auto; flex-shrink: 0;
-  border: 1px solid var(--border); border-radius: var(--radius-control);
-  background: var(--chrome-button-bg); color: var(--text); font-size: 11px; font-weight: 500; cursor: pointer;
-  transition: background-color var(--duration-quick), transform var(--duration-micro);
-}
-.sidebar-new-session-button:hover { background: var(--chrome-button-hover); }
-.sidebar-new-session-button:active { transform: scale(0.97); }
-.sidebar-new-session-button:disabled { opacity: 0.45; cursor: not-allowed; }
 .sidebar-search {
   display: flex; align-items: center; gap: 7px; height: 32px; margin-top: 14px; padding: 0 9px;
   border: 1px solid transparent; border-radius: var(--radius-control);
