@@ -5,7 +5,7 @@ export interface SessionTreeNode {
   children: SessionTreeNode[];
 }
 
-export function formatRelativeTime(dateStr: string, locale = "en"): string {
+export function formatRelativeTime(dateStr: string, locale = "en", compact = false): string {
   const date = new Date(dateStr);
   const now = new Date();
   const diff = now.getTime() - date.getTime();
@@ -13,6 +13,13 @@ export function formatRelativeTime(dateStr: string, locale = "en"): string {
   const hours = Math.floor(diff / 3600000);
   const days = Math.floor(diff / 86400000);
   const chinese = locale.toLowerCase().startsWith("zh");
+  if (compact) {
+    if (mins < 1) return chinese ? "刚刚" : "now";
+    if (mins < 60) return chinese ? `${mins}分` : `${mins}m`;
+    if (hours < 24) return chinese ? `${hours}时` : `${hours}h`;
+    if (days < 7) return chinese ? `${days}天` : `${days}d`;
+    return date.toLocaleDateString(locale, { month: "numeric", day: "numeric" });
+  }
   if (mins < 1) return chinese ? "刚刚" : "just now";
   if (mins < 60) return chinese ? `${mins} 分钟前` : `${mins}m ago`;
   if (hours < 24) return chinese ? `${hours} 小时前` : `${hours}h ago`;
@@ -20,8 +27,8 @@ export function formatRelativeTime(dateStr: string, locale = "en"): string {
   return date.toLocaleDateString(locale);
 }
 
-/** All unique cwds across sessions, sorted by most recent activity */
-export function getAllCwds(sessions: SessionInfo[]): string[] {
+/** Return the 5 most recently active cwds across all sessions */
+export function getRecentCwds(sessions: SessionInfo[]): string[] {
   const latestByCwd = new Map<string, string>(); // cwd -> most recent modified
   for (const s of sessions) {
     if (!s.cwd) continue;
@@ -32,12 +39,8 @@ export function getAllCwds(sessions: SessionInfo[]): string[] {
   }
   return [...latestByCwd.entries()]
     .sort((a, b) => b[1].localeCompare(a[1]))
+    .slice(0, 5)
     .map(([cwd]) => cwd);
-}
-
-/** Return the 5 most recently active cwds across all sessions */
-export function getRecentCwds(sessions: SessionInfo[]): string[] {
-  return getAllCwds(sessions).slice(0, 5);
 }
 
 export function shortenCwd(cwd: string, homeDir?: string): string {
@@ -46,39 +49,6 @@ export function shortenCwd(cwd: string, homeDir?: string): string {
   const parts = path.split(sep).filter(Boolean);
   if (parts.length <= 2) return path;
   return "…/" + parts.slice(-2).join(sep);
-}
-
-/** Basename of a path, handling both unix and windows separators */
-export function pathBasename(p: string): string {
-  const parts = p.split(/[\\/]/).filter(Boolean);
-  return parts[parts.length - 1] ?? p;
-}
-
-/** Sort project cwds alphabetically by folder name, case-insensitive (stable tie-break on full path) */
-export function sortCwdsAlphabetically(cwds: string[]): string[] {
-  return [...cwds].sort((a, b) => {
-    const byName = pathBasename(a).localeCompare(pathBasename(b), undefined, { sensitivity: "base" });
-    return byName !== 0 ? byName : a.localeCompare(b);
-  });
-}
-
-/** Reveal a directory in the OS file manager (Finder / Explorer) */
-export async function openDirectoryInFileManager(dirPath: string): Promise<void> {
-  const res = await fetch("/api/open-directory", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ path: dirPath }),
-  });
-  if (!res.ok) {
-    let message = `HTTP ${res.status}`;
-    try {
-      const data = (await res.json()) as { error?: string };
-      if (data.error) message = data.error;
-    } catch {
-      // keep HTTP status message
-    }
-    throw new Error(message);
-  }
 }
 
 type ElectronAPI = {

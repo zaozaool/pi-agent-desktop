@@ -1,6 +1,6 @@
 {
   "name": "@chasen-liao/pi-agent-desktop",
-  "version": "0.10.0",
+  "version": "0.11.0",
   "description": "Pi Agent Desktop — desktop client for the pi coding agent",
   "license": "MIT",
   "author": "Chasen",
@@ -49,6 +49,10 @@
     "electron-updater": "^6.8.9"
   },
   "devDependencies": {
+    "@base-ui/react": "1.0.0",
+    "@dnd-kit/core": "^6.3.1",
+    "@dnd-kit/sortable": "^10.0.0",
+    "@dnd-kit/utilities": "^3.2.2",
     "@earendil-works/pi-ai": "^1.1.0",
     "@earendil-works/pi-coding-agent": "^1.1.0",
     "@earendil-works/pi-mcp": "^1.1.0",

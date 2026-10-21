@@ -1,77 +1,110 @@
 "use client";
 
-import { useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import { PiAgentTitle } from "./PiAgentTitle";
+import { pickDirectoryFromHost } from "./helpers";
+import { SidebarIcon } from "./SidebarIcon";
+import { ProjectSortMenu } from "./ProjectSortMenu";
+import type { ProjectSortMode } from "./projects";
 import { useI18n } from "../I18nProvider";
+import { useDismissOnOutsideClick } from "@/hooks/useDismissOnOutsideClick";
 
 interface SidebarHeaderProps {
   selectedCwd: string | null;
-  onNewSession?: (sessionId: string, cwd: string) => void;
-  loadSessions: (showLoading?: boolean) => Promise<void>;
+  onNewSession: (cwd: string) => void;
+  onAddProject: (cwd: string) => void;
+  loadSessions: () => Promise<void>;
   sessionRefreshDone: boolean;
+  searchQuery: string;
+  onSearchQueryChange: (query: string) => void;
+  sortMode: ProjectSortMode;
+  onSortModeChange: (mode: ProjectSortMode, animate: boolean) => void;
 }
 
-export function SidebarHeader({
-  selectedCwd,
-  onNewSession,
-  loadSessions,
-  sessionRefreshDone,
-}: SidebarHeaderProps) {
+export function SidebarHeader({ selectedCwd, onNewSession, onAddProject, loadSessions, sessionRefreshDone, searchQuery, onSearchQueryChange, sortMode, onSortModeChange }: SidebarHeaderProps) {
   const { t } = useI18n();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [picking, setPicking] = useState(false);
+  const [pickerError, setPickerError] = useState<string | null>(null);
+  const pickerRef = useRef<HTMLDivElement>(null);
+  const pickerButtonRef = useRef<HTMLButtonElement>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
 
-  const handleNewSession = useCallback(() => {
-    if (!selectedCwd) return;
-    const tempId =
-      typeof crypto.randomUUID === "function"
-        ? crypto.randomUUID()
-        : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}-${Math.random().toString(36).slice(2)}`;
-    onNewSession?.(tempId, selectedCwd);
-  }, [selectedCwd, onNewSession]);
+  useDismissOnOutsideClick(pickerRef, menuOpen, (reason) => {
+    setMenuOpen(false);
+    if (reason === "escape") pickerButtonRef.current?.focus();
+  });
+
+  const addDirectory = useCallback(async (useDefault: boolean) => {
+    setMenuOpen(false);
+    setPickerError(null);
+    setPicking(true);
+    try {
+      let path: string | null;
+      if (useDefault) {
+        const response = await fetch("/api/default-cwd", { method: "POST" });
+        const data = await response.json() as { cwd?: string; error?: string };
+        if (!response.ok || !data.cwd) throw new Error(data.error || t("common.failed"));
+        path = data.cwd;
+      } else {
+        path = await pickDirectoryFromHost();
+      }
+      if (path?.trim()) {
+        onSearchQueryChange("");
+        onAddProject(path.trim());
+      }
+    } catch (error) {
+      setPickerError(error instanceof Error ? error.message : t("common.failed"));
+    } finally {
+      setPicking(false);
+      pickerButtonRef.current?.focus();
+    }
+  }, [onAddProject, onSearchQueryChange, t]);
 
   return (
-    <div className="p-2.5 pb-[10px] border-b border-divider shrink-0">
-      <div className="sidebar-title-row flex items-center justify-between mb-2.5">
+    <header className="sidebar-header">
+      <div className="sidebar-title-row">
         <PiAgentTitle />
-        <div className="ml-auto flex gap-1">
-          <button
-            onClick={handleNewSession}
-            disabled={!selectedCwd}
-            aria-label={t("sidebar.newSession")}
-            className={`sidebar-new-session-button flex h-7 w-7 shrink-0 items-center justify-center rounded-control border p-0 transition-[background-color,border-color,color,opacity,transform] duration-150 ${
-              selectedCwd
-                ? "bg-chrome-button-bg border-border text-text-muted cursor-pointer hover:bg-chrome-button-hover hover:text-accent hover:border-focus-ring active:scale-95"
-                : "bg-chrome-button-bg border-border text-text-dim cursor-not-allowed"
-            }`}
-            title={selectedCwd ? t("sidebar.newSessionIn", { path: selectedCwd }) : t("sidebar.selectProjectFirst")}
-          >
-            <svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
-              <line x1="6" y1="1" x2="6" y2="11" />
-              <line x1="1" y1="6" x2="11" y2="6" />
-            </svg>
+        <button
+          className="sidebar-new-session-button"
+          onClick={() => selectedCwd && onNewSession(selectedCwd)}
+          disabled={!selectedCwd}
+          title={selectedCwd ? t("sidebar.newSessionIn", { path: selectedCwd }) : t("sidebar.selectProjectFirst")}
+        >
+          <SidebarIcon name="plus" size={14} />
+          {t("sidebar.newSession")}
+        </button>
+      </div>
+      <div className="sidebar-search">
+        <SidebarIcon name="search" size={14} />
+        <input ref={searchRef} type="search" value={searchQuery} onChange={(event) => onSearchQueryChange(event.target.value)} onKeyDown={(event) => {
+          if (event.key === "Escape" && searchQuery) {
+            event.stopPropagation();
+            onSearchQueryChange("");
+          }
+        }} placeholder={t("sidebar.searchPlaceholder")} aria-label={t("sidebar.searchPlaceholder")} />
+        {searchQuery && <button className="sidebar-icon-button" aria-label={t("sidebar.clearSearch")} onClick={() => { onSearchQueryChange(""); searchRef.current?.focus(); }}><SidebarIcon name="close" size={12} /></button>}
+      </div>
+      <div className="sidebar-section-heading">
+        <span>{t("sidebar.projects")}</span>
+        <div className="sidebar-section-actions">
+          <ProjectSortMenu value={sortMode} onChange={onSortModeChange} />
+          <button className="sidebar-icon-button sidebar-refresh-button" data-done={sessionRefreshDone || undefined} onClick={() => void loadSessions()} title={t("sidebar.refreshSessions")} aria-label={t("sidebar.refreshSessions")}>
+            <SidebarIcon name={sessionRefreshDone ? "check" : "refresh"} size={14} />
           </button>
-          <button
-            onClick={() => loadSessions(false)}
-            aria-label={t("sidebar.refreshSessions")}
-            className={`sidebar-refresh-button flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded-control border p-0 transition-[background-color,border-color,color,transform] duration-250 ${
-              sessionRefreshDone
-                ? "bg-success-bg border-success-border text-success"
-                : "bg-chrome-button-bg border-border text-text-muted hover:bg-chrome-button-hover hover:text-accent hover:border-focus-ring"
-            }`}
-            title={t("common.refresh")}
-          >
-            {sessionRefreshDone ? (
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="20 6 9 17 4 12" />
-              </svg>
-            ) : (
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
-                <path d="M3 3v5h5" />
-              </svg>
-            )}
-          </button>
+          <div ref={pickerRef} className="sidebar-project-picker">
+            <button ref={pickerButtonRef} className="sidebar-icon-button" onClick={() => setMenuOpen((open) => !open)} disabled={picking} title={t("sidebar.addProject")} aria-label={t("sidebar.addProject")} aria-expanded={menuOpen}>
+              <SidebarIcon name="folder-plus" size={16} />
+            </button>
+            {menuOpen && <div className="sidebar-picker-menu material-popover shadow-popover t-dropdown is-open" data-origin="top-right">
+              <button onClick={() => void addDirectory(false)}><SidebarIcon name="folder" size={15} />{t("sidebar.chooseDirectory")}</button>
+              <button onClick={() => void addDirectory(true)}><SidebarIcon name="plus" size={15} />{t("sidebar.defaultDirectory")}</button>
+            </div>}
+          </div>
         </div>
       </div>
-    </div>
+      {picking && <p className="sidebar-notice" role="status">{t("sidebar.openingFolderPicker")}</p>}
+      {pickerError && <p className="sidebar-notice text-danger" role="alert">{pickerError}</p>}
+    </header>
   );
 }
