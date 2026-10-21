@@ -74,6 +74,25 @@ export async function pickDirectoryFromHost(): Promise<string | null> {
   return data.path ?? null;
 }
 
+/** Reveal a directory in the OS file manager (Finder / Explorer / xdg-open) */
+export async function openDirectoryInFileManager(dirPath: string): Promise<void> {
+  const res = await fetch("/api/open-directory", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ path: dirPath }),
+  });
+  if (!res.ok) {
+    let message = `HTTP ${res.status}`;
+    try {
+      const data = (await res.json()) as { error?: string };
+      if (data.error) message = data.error;
+    } catch {
+      // keep HTTP status message
+    }
+    throw new Error(message);
+  }
+}
+
 export function buildSessionTree(sessions: SessionInfo[]): SessionTreeNode[] {
   const byId = new Map<string, SessionTreeNode>();
   for (const s of sessions) {

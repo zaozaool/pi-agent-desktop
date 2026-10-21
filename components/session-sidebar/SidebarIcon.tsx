@@ -17,6 +17,7 @@ const paths = {
   copy: <><rect x="8" y="8" width="13" height="13" rx="2" /><path d="M16 4V3H3v13h1" /></>,
   download: <><path d="M4 16v4h16v-4M12 3v12m-5-5 5 5 5-5" /></>,
   pencil: <><path d="m15 5 4 4M4 20l5-1L21 7a2.8 2.8 0 0 0-4-4L5 15Z" /></>,
+  reveal: <><path d="M20 13v6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h6" /><path d="M15 3h6v6" /><path d="m21 3-9 9" /></>,
   trash: <><path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7m4-7v7" /></>,
 };
 

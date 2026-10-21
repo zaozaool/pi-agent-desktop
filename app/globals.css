@@ -1103,7 +1103,11 @@ span.linenumber {
 .sidebar-project-path { flex: 1; min-width: 22px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; direction: rtl; text-align: left; font-size: 11px; color: var(--text-muted); }
 .sidebar-project-count { width: 28px; flex-shrink: 0; text-align: center; color: var(--text-muted); font-size: 11px; font-variant-numeric: tabular-nums; transition: opacity var(--duration-quick); }
 .sidebar-project-add { position: absolute; right: 1px; opacity: 0; }
+.sidebar-project-reveal { position: absolute; right: 29px; opacity: 0; }
 .sidebar-project-row:hover .sidebar-project-add, .sidebar-project-row:focus-within .sidebar-project-add { opacity: 1; }
+.sidebar-project-row:hover .sidebar-project-reveal, .sidebar-project-row:focus-within .sidebar-project-reveal { opacity: 1; }
+.sidebar-project-reveal[data-error] { color: var(--danger); }
+.sidebar-project-error { padding: 2px 10px 4px 12px; font-size: 11px; line-height: 1.4; color: var(--danger); overflow-wrap: anywhere; }
 .sidebar-project-row:hover .sidebar-project-count, .sidebar-project-row:focus-within .sidebar-project-count { opacity: 0; }
 .sidebar-project-content { display: grid; grid-template-rows: 0fr; opacity: 0; transition: grid-template-rows var(--duration-fast) var(--ease-smooth-out), opacity var(--duration-quick) var(--ease-smooth-out); }
 .sidebar-project-content[data-expanded="true"] { grid-template-rows: 1fr; opacity: 1; padding-bottom: 5px; }
@@ -1196,7 +1200,7 @@ span.linenumber {
 .sidebar-explorer-cwd { min-width: 0; overflow: hidden; text-overflow: ellipsis; font-weight: 400; color: var(--text-muted); opacity: 0.8; }
 .sidebar-explorer-content { flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; padding-bottom: 4px; }
 @media (hover: none) {
-  .sidebar-project-add, .sidebar-session-actions { opacity: 1; }
+  .sidebar-project-add, .sidebar-project-reveal, .sidebar-session-actions { opacity: 1; }
   .sidebar-project-count, .sidebar-session-time { opacity: 0; }
   .sidebar-project-drag-handle { opacity: 1; }
   .sidebar-project-chevron { opacity: 0; }
@@ -1211,7 +1215,7 @@ span.linenumber {
 
 /* macOS traffic lights occupy the left side of the hidden title bar. */
 html[data-electron-platform="darwin"] .sidebar-title-row .pi-agent-title {
-  display: none;
+  margin-left: 70px;
 }
 
 .macos-titlebar-leading-safe-area {

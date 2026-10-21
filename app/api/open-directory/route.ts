@@ -4,6 +4,7 @@ import fs from "fs";
 import { NextResponse } from "next/server";
 import { errorMessage, getRequestId, logApiError } from "@/lib/api-error";
 import { getAllowedRoots, isPathAllowed } from "@/lib/allowed-roots";
+import { validateAgentCwd } from "@/lib/path-policy";
 
 const execFileAsync = promisify(execFile);
 
@@ -46,8 +47,13 @@ export async function POST(req: Request) {
       );
     }
 
+    // Session roots are always allowed. Folders added to the sidebar manually
+    // have no session yet, so they are missing from allowedRoots; for those we
+    // fall back to the agent cwd policy (no filesystem root, home or system
+    // directories). Revealing a folder only launches the OS file manager and
+    // never exposes file contents, so this does not widen data access.
     const allowedRoots = await getAllowedRoots();
-    if (!isPathAllowed(realPath, allowedRoots)) {
+    if (!isPathAllowed(realPath, allowedRoots) && validateAgentCwd(realPath) !== null) {
       return NextResponse.json(
         { error: "Access denied" },
         { status: 403, headers: { "x-request-id": requestId } }
