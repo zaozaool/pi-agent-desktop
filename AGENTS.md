@@ -15,6 +15,8 @@ npm run dist:mac     # macOS DMG, current arch by default (MAC_ARCH=universal/ar
 # GitHub Release: push tag vX.Y.Z → .github/workflows/desktop-packages.yml
 ```
 
+Electron 二进制走 npmmirror（`electron-builder.yml` 的 `electronDownload` + `.npmrc` 的 `electron_mirror`），国内网络无需再手动设 `ELECTRON_MIRROR`；要换回官方源就删掉这两处配置。
+
 Typecheck: `npx tsc --noEmit` | Lint: `npm run lint`
 Test: `npm test`（含 `middleware.test.ts`；不要去掉 `--test-force-exit`）
 Subsets: `npm run test:windows` / `npm run test:macos`
